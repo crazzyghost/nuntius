@@ -3,14 +3,17 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/crazzyghost/nuntius/internal/ai"
 	"github.com/crazzyghost/nuntius/internal/config"
 	"github.com/crazzyghost/nuntius/internal/events"
+	"github.com/crazzyghost/nuntius/internal/git"
 )
 
 const actionBarHeight = 3
@@ -27,10 +30,18 @@ type AppModel struct {
 	width     int
 	height    int
 	ready     bool
-	status    string // transient status message
+
+	// Integration fields.
+	watcher     *git.Watcher
+	provider    ai.Provider
+	conventions string
+
+	// Status line with auto-clear.
+	statusEntry *statusEntry
 }
 
-// NewApp creates a new root TUI model.
+// NewApp creates a new root TUI model with no external dependencies.
+// Use WithWatcher, WithProvider, and WithConventions to wire in real services.
 func NewApp(cfg config.Config) AppModel {
 	h := help.New()
 	return AppModel{
@@ -42,12 +53,39 @@ func NewApp(cfg config.Config) AppModel {
 	}
 }
 
+// WithWatcher sets the git file watcher on the app.
+func (m AppModel) WithWatcher(w *git.Watcher) AppModel {
+	m.watcher = w
+	return m
+}
+
+// WithProvider sets the AI provider on the app.
+func (m AppModel) WithProvider(p ai.Provider) AppModel {
+	m.provider = p
+	return m
+}
+
+// WithConventions sets the detected commit convention style.
+func (m AppModel) WithConventions(c string) AppModel {
+	m.conventions = c
+	return m
+}
+
 // Init returns the initial commands for the application.
 func (m AppModel) Init() tea.Cmd {
-	return tea.Batch(
+	cmds := []tea.Cmd{
 		m.viewport.Init(),
 		m.actionbar.Init(),
-	)
+		// Fetch current git status immediately so existing changes are visible.
+		refreshStatusCmd(),
+	}
+
+	// Start listening for watcher events if a watcher is wired in.
+	if m.watcher != nil {
+		cmds = append(cmds, waitForFileChange(m.watcher))
+	}
+
+	return tea.Batch(cmds...)
 }
 
 // Update handles all incoming messages.
@@ -68,9 +106,15 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		// Any key press clears the status line.
+		m.statusEntry = nil
+
 		// Global keys handled at root level.
 		switch {
 		case key.Matches(msg, m.keys.Quit):
+			if m.watcher != nil {
+				m.watcher.Stop()
+			}
 			return m, tea.Quit
 
 		case key.Matches(msg, m.keys.Help):
@@ -78,28 +122,26 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, m.keys.Generate):
-			if m.actionbar.GenerateEnabled() && m.viewport.HasStagedChanges() {
-				m.status = ""
-				cmd := m.dispatchGenerate()
-				cmds = append(cmds, cmd)
-			} else if !m.viewport.HasStagedChanges() {
-				m.status = StatusError.Render("No staged changes to generate a message for.")
+			if m.actionbar.GenerateEnabled() && m.viewport.HasChanges() {
+				cmd := m.triggerGenerate()
+				cmds = append(cmds, cmd...)
+			} else if !m.viewport.HasChanges() {
+				m.setStatus("No changes to generate a message for.", statusErr)
+				cmds = append(cmds, scheduleStatusClear())
 			}
 			return m, tea.Batch(cmds...)
 
 		case key.Matches(msg, m.keys.Commit):
 			if m.actionbar.CommitEnabled() && m.viewport.HasMessage() {
-				m.status = ""
-				cmd := m.dispatchCommit()
-				cmds = append(cmds, cmd)
+				cmd := m.triggerCommit()
+				cmds = append(cmds, cmd...)
 			}
 			return m, tea.Batch(cmds...)
 
 		case key.Matches(msg, m.keys.Push):
 			if m.actionbar.PushEnabled() {
-				m.status = ""
-				cmd := m.dispatchPush()
-				cmds = append(cmds, cmd)
+				cmd := m.triggerPush()
+				cmds = append(cmds, cmd...)
 			}
 			return m, tea.Batch(cmds...)
 
@@ -111,18 +153,20 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			action := m.actionbar.FocusedAction()
 			switch action {
 			case "g":
-				if m.viewport.HasStagedChanges() {
-					cmd := m.dispatchGenerate()
-					cmds = append(cmds, cmd)
+				if m.viewport.HasChanges() {
+					cmd := m.triggerGenerate()
+					cmds = append(cmds, cmd...)
 				}
 			case "c":
 				if m.viewport.HasMessage() {
-					cmd := m.dispatchCommit()
-					cmds = append(cmds, cmd)
+					cmd := m.triggerCommit()
+					cmds = append(cmds, cmd...)
 				}
 			case "p":
-				cmd := m.dispatchPush()
-				cmds = append(cmds, cmd)
+				if m.actionbar.PushEnabled() {
+					cmd := m.triggerPush()
+					cmds = append(cmds, cmd...)
+				}
 			}
 			return m, tea.Batch(cmds...)
 		}
@@ -138,6 +182,10 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.viewport, cmd = m.viewport.Update(msg)
 		cmds = append(cmds, cmd)
+		// Keep listening for more watcher events.
+		if m.watcher != nil {
+			cmds = append(cmds, waitForFileChange(m.watcher))
+		}
 
 	case events.GenerateRequestedMsg:
 		var vcmd, acmd tea.Cmd
@@ -150,32 +198,57 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport, vcmd = m.viewport.Update(msg)
 		m.actionbar, acmd = m.actionbar.Update(msg)
 		cmds = append(cmds, vcmd, acmd)
+		m.setStatus("Message generated.", statusSuccess)
+		cmds = append(cmds, scheduleStatusClear())
+
+		// Auto-commit: chain into commit after generation.
+		if m.config.Behavior.AutoCommit {
+			m.setStatus("Auto-committing...", statusInfo)
+			commitCmds := m.triggerCommit()
+			cmds = append(cmds, commitCmds...)
+		}
 
 	case events.CommitResultMsg:
 		var cmd tea.Cmd
 		m.actionbar, cmd = m.actionbar.Update(msg)
 		cmds = append(cmds, cmd)
 		if msg.Err != nil {
-			m.status = StatusError.Render(fmt.Sprintf("Commit failed: %v", msg.Err))
+			m.setStatus(fmt.Sprintf("Commit failed: %v", msg.Err), statusErr)
 		} else {
-			m.status = StatusOK.Render(fmt.Sprintf("Committed: %s", msg.Hash))
+			m.setStatus(fmt.Sprintf("Committed: %s", msg.Hash), statusSuccess)
+			// Switch viewport back to file list and refresh.
+			m.viewport.SwitchToFileList()
+			cmds = append(cmds, refreshStatusCmd())
+
+			// Auto-push: chain into push after commit.
+			if m.config.Behavior.AutoPush {
+				m.setStatus("Auto-pushing...", statusInfo)
+				pushCmds := m.triggerPush()
+				cmds = append(cmds, pushCmds...)
+			}
 		}
+		cmds = append(cmds, scheduleStatusClear())
 
 	case events.PushResultMsg:
 		var cmd tea.Cmd
 		m.actionbar, cmd = m.actionbar.Update(msg)
 		cmds = append(cmds, cmd)
 		if msg.Err != nil {
-			m.status = StatusError.Render(fmt.Sprintf("Push failed: %v", msg.Err))
+			m.setStatus(fmt.Sprintf("Push failed: %v", msg.Err), statusErr)
 		} else {
-			m.status = StatusOK.Render(fmt.Sprintf("Pushed to %s", msg.Remote))
+			m.setStatus(fmt.Sprintf("Pushed to %s", msg.Remote), statusSuccess)
 		}
+		cmds = append(cmds, scheduleStatusClear())
 
 	case events.ErrorMsg:
 		var cmd tea.Cmd
 		m.actionbar, cmd = m.actionbar.Update(msg)
 		cmds = append(cmds, cmd)
-		m.status = StatusError.Render(fmt.Sprintf("[%s] %v", msg.Source, msg.Err))
+		m.setStatus(formatErrorMsg(msg), statusErr)
+		cmds = append(cmds, scheduleStatusClear())
+
+	case statusClearMsg:
+		m.statusEntry = nil
 
 	default:
 		// Forward spinner ticks and other messages.
@@ -200,13 +273,16 @@ func (m AppModel) View() string {
 		Width(m.width - 2).
 		Render(vpContent)
 
-	// Action bar.
-	abContent := m.actionbar.View()
-
 	// Status line.
 	statusLine := ""
-	if m.status != "" {
-		statusLine = m.status
+	if m.statusEntry != nil {
+		statusLine = renderStatus(*m.statusEntry)
+	}
+
+	// Action bar with auto-mode badges.
+	abContent := m.actionbar.View()
+	if m.config.Behavior.AutoCommit || m.config.Behavior.AutoPush {
+		abContent += "  " + StatusMuted.Render(m.autoModeBadges())
 	}
 
 	// Help overlay.
@@ -218,33 +294,80 @@ func (m AppModel) View() string {
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
 		vpPanel,
-		abContent,
 		statusLine,
+		abContent,
 		helpView,
 	)
 }
 
-// dispatchGenerate sends a GenerateRequestedMsg into the update loop.
-func (m *AppModel) dispatchGenerate() tea.Cmd {
-	return func() tea.Msg {
-		return events.GenerateRequestedMsg{}
+// triggerGenerate dispatches the generate flow.
+func (m *AppModel) triggerGenerate() []tea.Cmd {
+	// Send GenerateRequestedMsg to update spinners/states immediately.
+	reqCmd := func() tea.Msg { return events.GenerateRequestedMsg{} }
+
+	if m.provider == nil {
+		errCmd := func() tea.Msg {
+			return events.ErrorMsg{Source: "generate", Err: fmt.Errorf("no AI provider configured")}
+		}
+		return []tea.Cmd{reqCmd, errCmd}
 	}
+
+	return []tea.Cmd{reqCmd, generateCmd(m.provider, m.conventions)}
 }
 
-// dispatchCommit sends a commit command placeholder.
-// The actual git commit logic is wired in Phase 5 (integration).
-func (m *AppModel) dispatchCommit() tea.Cmd {
-	return func() tea.Msg {
-		return events.GenerateRequestedMsg{} // placeholder — replaced in integration phase
+// triggerCommit dispatches the commit flow.
+func (m *AppModel) triggerCommit() []tea.Cmd {
+	message := m.viewport.Message()
+	if message == "" {
+		return nil
 	}
+	return []tea.Cmd{commitCmd(message)}
 }
 
-// dispatchPush sends a push command placeholder.
-// The actual git push logic is wired in Phase 5 (integration).
-func (m *AppModel) dispatchPush() tea.Cmd {
-	return func() tea.Msg {
-		return events.GenerateRequestedMsg{} // placeholder — replaced in integration phase
+// triggerPush dispatches the push flow.
+func (m *AppModel) triggerPush() []tea.Cmd {
+	return []tea.Cmd{pushCmd(m.config.Behavior.ForcePush)}
+}
+
+// setStatus sets the transient status message.
+func (m *AppModel) setStatus(message string, level statusLevel) {
+	m.statusEntry = &statusEntry{message: message, level: level}
+}
+
+// autoModeBadges returns a compact string showing which auto modes are enabled.
+func (m AppModel) autoModeBadges() string {
+	var badges []string
+	if m.config.Behavior.AutoCommit {
+		badges = append(badges, "auto-commit")
 	}
+	if m.config.Behavior.AutoPush {
+		badges = append(badges, "auto-push")
+	}
+	if len(badges) == 0 {
+		return ""
+	}
+	return "[" + strings.Join(badges, " | ") + "]"
+}
+
+// formatErrorMsg creates a user-friendly error message with hints.
+func formatErrorMsg(msg events.ErrorMsg) string {
+	base := fmt.Sprintf("[%s] %v", msg.Source, msg.Err)
+
+	errStr := msg.Err.Error()
+
+	// Add hints for common errors.
+	switch {
+	case strings.Contains(errStr, "API key") || strings.Contains(errStr, "api_key") ||
+		strings.Contains(errStr, "401") || strings.Contains(errStr, "authentication"):
+		return base + " — hint: set the API key env var or configure api_key_env in .nuntius.toml"
+	case strings.Contains(errStr, "connection refused") || strings.Contains(errStr, "no such host") ||
+		strings.Contains(errStr, "timeout"):
+		return base + " — hint: check your network connection and retry"
+	case strings.Contains(errStr, "no upstream"):
+		return base + " — hint: run 'git push --set-upstream origin <branch>'"
+	}
+
+	return base
 }
 
 // Width returns the current terminal width.

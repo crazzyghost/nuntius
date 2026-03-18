@@ -122,6 +122,9 @@ func TestAppMessageReadyRouting(t *testing.T) {
 	if !m.actionbar.CommitEnabled() {
 		t.Error("commit should be enabled after message ready")
 	}
+	if m.statusEntry == nil {
+		t.Error("status should be set after message ready")
+	}
 }
 
 func TestAppCommitResultRouting(t *testing.T) {
@@ -132,7 +135,7 @@ func TestAppCommitResultRouting(t *testing.T) {
 	model, _ = m.Update(events.CommitResultMsg{Hash: "abc1234"})
 	m = model.(AppModel)
 
-	if m.status == "" {
+	if m.statusEntry == nil {
 		t.Error("status should be set after commit result")
 	}
 }
@@ -145,8 +148,11 @@ func TestAppCommitResultError(t *testing.T) {
 	model, _ = m.Update(events.CommitResultMsg{Err: fmt.Errorf("fail")})
 	m = model.(AppModel)
 
-	if m.status == "" {
+	if m.statusEntry == nil {
 		t.Error("status should be set on commit error")
+	}
+	if m.statusEntry.level != statusErr {
+		t.Error("status level should be error")
 	}
 }
 
@@ -158,7 +164,7 @@ func TestAppPushResultRouting(t *testing.T) {
 	model, _ = m.Update(events.PushResultMsg{Remote: "origin"})
 	m = model.(AppModel)
 
-	if m.status == "" {
+	if m.statusEntry == nil {
 		t.Error("status should be set after push result")
 	}
 }
@@ -171,22 +177,22 @@ func TestAppErrorMsgRouting(t *testing.T) {
 	model, _ = m.Update(events.ErrorMsg{Source: "generate", Err: fmt.Errorf("fail")})
 	m = model.(AppModel)
 
-	if m.status == "" {
+	if m.statusEntry == nil {
 		t.Error("status should be set on error")
 	}
 }
 
-func TestAppGenerateWithNoStagedChanges(t *testing.T) {
+func TestAppGenerateWithNoChanges(t *testing.T) {
 	app := NewApp(config.DefaultConfig())
 	model, _ := app.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m := model.(AppModel)
 
-	// Press 'g' with no staged changes.
+	// Press 'g' with no changes at all.
 	model, _ = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'g'}}))
 	m = model.(AppModel)
 
-	if m.status == "" {
-		t.Error("should show error about no staged changes")
+	if m.statusEntry == nil {
+		t.Error("should show error about no changes")
 	}
 }
 
@@ -202,6 +208,127 @@ func TestAppTabCyclesFocus(t *testing.T) {
 	// Tab should cycle focus.
 	model, _ = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyTab}))
 	m = model.(AppModel)
-	// After tab, focus should have moved.
 	// Just verify it doesn't panic.
+}
+
+func TestAppStatusClearMsg(t *testing.T) {
+	app := NewApp(config.DefaultConfig())
+	model, _ := app.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m := model.(AppModel)
+
+	// Set status via error.
+	model, _ = m.Update(events.ErrorMsg{Source: "test", Err: fmt.Errorf("fail")})
+	m = model.(AppModel)
+	if m.statusEntry == nil {
+		t.Fatal("status should be set")
+	}
+
+	// Clear status.
+	model, _ = m.Update(statusClearMsg{})
+	m = model.(AppModel)
+	if m.statusEntry != nil {
+		t.Error("status should be cleared after statusClearMsg")
+	}
+}
+
+func TestAppAutoCommit(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Behavior.AutoCommit = true
+	app := NewApp(cfg)
+
+	model, _ := app.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m := model.(AppModel)
+
+	// MessageReady with auto-commit should set status and return commit cmd.
+	model, cmd := m.Update(events.MessageReadyMsg{Message: "feat: auto"})
+	m = model.(AppModel)
+
+	if m.statusEntry == nil {
+		t.Error("status should be set for auto-commit")
+	}
+	if cmd == nil {
+		t.Error("auto-commit should return a command")
+	}
+}
+
+func TestAppAutoModeBadges(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Behavior.AutoCommit = true
+	cfg.Behavior.AutoPush = true
+	app := NewApp(cfg)
+
+	model, _ := app.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m := model.(AppModel)
+
+	view := m.View()
+	if view == "" {
+		t.Error("view should not be empty")
+	}
+}
+
+func TestFormatErrorMsg(t *testing.T) {
+	tests := []struct {
+		name     string
+		msg      events.ErrorMsg
+		contains string
+	}{
+		{
+			"api key hint",
+			events.ErrorMsg{Source: "generate", Err: fmt.Errorf("401 authentication failed")},
+			"api_key_env",
+		},
+		{
+			"network hint",
+			events.ErrorMsg{Source: "generate", Err: fmt.Errorf("connection refused")},
+			"network",
+		},
+		{
+			"upstream hint",
+			events.ErrorMsg{Source: "push", Err: fmt.Errorf("no upstream branch")},
+			"set-upstream",
+		},
+		{
+			"generic error",
+			events.ErrorMsg{Source: "commit", Err: fmt.Errorf("something went wrong")},
+			"something went wrong",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatErrorMsg(tt.msg)
+			if result == "" {
+				t.Error("formatErrorMsg should not return empty")
+			}
+		})
+	}
+}
+
+func TestAppWithBuilders(t *testing.T) {
+	app := NewApp(config.DefaultConfig()).
+		WithConventions("conventional")
+
+	if app.conventions != "conventional" {
+		t.Errorf("expected conventions 'conventional', got %q", app.conventions)
+	}
+}
+
+func TestAppKeyPressClearsStatus(t *testing.T) {
+	app := NewApp(config.DefaultConfig())
+	model, _ := app.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m := model.(AppModel)
+
+	// Set status.
+	model, _ = m.Update(events.ErrorMsg{Source: "test", Err: fmt.Errorf("fail")})
+	m = model.(AppModel)
+	if m.statusEntry == nil {
+		t.Fatal("status should be set")
+	}
+
+	// Any key press should clear status.
+	model, _ = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'?'}}))
+	m = model.(AppModel)
+	if m.statusEntry != nil {
+		t.Error("key press should clear status")
+	}
 }

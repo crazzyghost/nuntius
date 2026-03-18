@@ -18,11 +18,25 @@ const truncationMarker = "\n... (truncated)"
 // The diff is truncated to maxBytes if it exceeds that size.
 // Pass 0 or a negative value for maxBytes to use DefaultMaxDiffBytes.
 func StagedDiff(maxBytes int) (string, error) {
+	return diffWith([]string{"--cached"}, maxBytes)
+}
+
+// Diff returns the unified diff for unstaged (working tree) changes.
+// If there are no unstaged changes, it returns an empty string.
+// The diff is truncated to maxBytes if it exceeds that size.
+// Pass 0 or a negative value for maxBytes to use DefaultMaxDiffBytes.
+func Diff(maxBytes int) (string, error) {
+	return diffWith(nil, maxBytes)
+}
+
+// diffWith runs git diff with the given extra args and returns the truncated output.
+func diffWith(extraArgs []string, maxBytes int) (string, error) {
 	if maxBytes <= 0 {
 		maxBytes = DefaultMaxDiffBytes
 	}
 
-	cmd := exec.Command("git", "diff", "--cached", "--unified=3")
+	args := append([]string{"diff", "--unified=3"}, extraArgs...)
+	cmd := exec.Command("git", args...)
 	out, err := cmd.Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
@@ -33,12 +47,21 @@ func StagedDiff(maxBytes int) (string, error) {
 
 	diff := string(out)
 
-	// Nothing staged → empty diff is not an error
 	if strings.TrimSpace(diff) == "" {
 		return "", nil
 	}
 
 	return truncateDiff(diff, maxBytes), nil
+}
+
+// StageAll stages all changes (tracked and untracked) via git add -A.
+func StageAll() error {
+	cmd := exec.Command("git", "add", "-A")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git add failed: %s", strings.TrimSpace(string(out)))
+	}
+	return nil
 }
 
 // truncateDiff truncates the diff string to maxBytes, appending a

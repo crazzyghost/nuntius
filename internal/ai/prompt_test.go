@@ -134,3 +134,26 @@ func TestConventionRules_AllTypes(t *testing.T) {
 		})
 	}
 }
+
+func TestCleanMessage(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"no fences", "feat: add feature", "feat: add feature"},
+		{"triple backticks", "```\nfeat: add feature\n```", "feat: add feature"},
+		{"backticks with lang", "```commit\nfeat: add feature\n```", "feat: add feature"},
+		{"leading whitespace", "  \n```\nfeat: add\n```\n  ", "feat: add"},
+		{"multiline body", "```\nfeat: add\n\nSome body text.\n```", "feat: add\n\nSome body text."},
+		{"no backticks just whitespace", "  feat: add  \n", "feat: add"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := CleanMessage(tt.input)
+			if got != tt.want {
+				t.Errorf("CleanMessage(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}

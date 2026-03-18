@@ -3,6 +3,7 @@ package ai
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -30,6 +31,7 @@ func BuildPrompt(req MessageRequest) string {
 	b.WriteString("\n- Subject line max 72 characters\n")
 	b.WriteString("- Use imperative mood\n")
 	b.WriteString("- Include a body only if the change is non-trivial\n")
+	b.WriteString("- Output ONLY the raw commit message text — no markdown fences, no backticks, no code blocks\n")
 
 	// File list
 	if len(req.FileList) > 0 {
@@ -94,4 +96,14 @@ func loadCustomTemplate() string {
 		return fmt.Sprintf("- [error loading custom template: %v]\n", err)
 	}
 	return string(data)
+}
+
+// fencePattern matches opening/closing markdown code fences like ```commit, ``` etc.
+var fencePattern = regexp.MustCompile("(?m)^\\s*```[a-zA-Z]*\\s*$")
+
+// CleanMessage strips markdown code fences and leading/trailing whitespace
+// from an AI-generated commit message.
+func CleanMessage(msg string) string {
+	cleaned := fencePattern.ReplaceAllString(msg, "")
+	return strings.TrimSpace(cleaned)
 }

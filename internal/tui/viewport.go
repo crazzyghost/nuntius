@@ -239,6 +239,11 @@ func (m ViewportModel) Files() []events.FileStatus {
 	return m.files
 }
 
+// HasChanges returns true if there are any changes (staged or unstaged).
+func (m ViewportModel) HasChanges() bool {
+	return len(m.files) > 0
+}
+
 // HasStagedChanges returns true if any files are staged.
 func (m ViewportModel) HasStagedChanges() bool {
 	for _, f := range m.files {
