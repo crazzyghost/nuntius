@@ -166,3 +166,40 @@ func TestIsButtonEnabledBounds(t *testing.T) {
 		t.Error("should return false for out-of-range index")
 	}
 }
+
+func TestVisibleWidth(t *testing.T) {
+	if w := visibleWidth("hello"); w != 5 {
+		t.Errorf("expected 5, got %d", w)
+	}
+	// ANSI escape should be stripped.
+	if w := visibleWidth("\x1b[32mhi\x1b[0m"); w != 2 {
+		t.Errorf("expected 2 for ANSI-colored 'hi', got %d", w)
+	}
+}
+
+func TestHitTest(t *testing.T) {
+	ab := NewActionBar()
+	// Call View to populate zones.
+	ab.View()
+
+	// First button starts at x=0.
+	idx := ab.HitTest(0)
+	if idx != 0 {
+		t.Errorf("expected button 0 at x=0, got %d", idx)
+	}
+
+	// Past all buttons should return -1.
+	idx = ab.HitTest(999)
+	if idx != -1 {
+		t.Errorf("expected -1 for x=999, got %d", idx)
+	}
+
+	// Somewhere in the second button zone.
+	z1 := ab.zones[1]
+	if z1.endX > z1.startX {
+		idx = ab.HitTest(z1.startX)
+		if idx != 1 {
+			t.Errorf("expected button 1 at x=%d, got %d", z1.startX, idx)
+		}
+	}
+}

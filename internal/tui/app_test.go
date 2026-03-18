@@ -196,6 +196,26 @@ func TestAppGenerateWithNoChanges(t *testing.T) {
 	}
 }
 
+func TestAppMouseClickGenerate(t *testing.T) {
+	app := NewApp(config.DefaultConfig())
+	model, _ := app.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m := model.(AppModel)
+
+	// Click on the Generate button in the bottom action bar region.
+	click := tea.MouseMsg{
+		X:      2,
+		Y:      23, // bottom row of a 24-high terminal (0-indexed)
+		Action: tea.MouseActionPress,
+		Button: tea.MouseButtonLeft,
+	}
+	model, _ = m.Update(click)
+	m = model.(AppModel)
+
+	if m.statusEntry == nil {
+		t.Error("mouse click on Generate with no changes should show status error")
+	}
+}
+
 func TestAppTabCyclesFocus(t *testing.T) {
 	app := NewApp(config.DefaultConfig())
 	model, _ := app.Update(tea.WindowSizeMsg{Width: 80, Height: 24})

@@ -53,11 +53,18 @@ func NewButton(label, key string) ButtonModel {
 	}
 }
 
+// buttonZone tracks the horizontal range of a rendered button.
+type buttonZone struct {
+	startX int
+	endX   int
+}
+
 // ActionBarModel is the bottom action bar containing the three buttons.
 type ActionBarModel struct {
 	buttons    [3]ButtonModel
 	focusIndex int
 	committed  bool // tracks whether a commit has happened
+	zones      [3]buttonZone
 }
 
 // NewActionBar creates a new action bar with Generate, Commit, and Push buttons.
@@ -192,14 +199,53 @@ func clearButtonAfterDelay(index int) tea.Cmd {
 	)
 }
 
-// View renders the action bar.
-func (m ActionBarModel) View() string {
+// View renders the action bar and records button hit zones.
+func (m *ActionBarModel) View() string {
+	sep := "  │  "
 	var parts []string
-	for _, btn := range m.buttons {
-		parts = append(parts, renderButton(btn))
+	x := 0
+	for i, btn := range m.buttons {
+		if i > 0 {
+			x += len(sep)
+		}
+		rendered := renderButton(btn)
+		// Use the visible width (rune count) for hit zones.
+		w := visibleWidth(rendered)
+		m.zones[i] = buttonZone{startX: x, endX: x + w}
+		parts = append(parts, rendered)
+		x += w
 	}
-	bar := strings.Join(parts, "  │  ")
-	return bar
+	return strings.Join(parts, sep)
+}
+
+// visibleWidth returns the printed width of a string, stripping ANSI escapes.
+func visibleWidth(s string) int {
+	inEsc := false
+	w := 0
+	for _, r := range s {
+		if r == '\x1b' {
+			inEsc = true
+			continue
+		}
+		if inEsc {
+			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+				inEsc = false
+			}
+			continue
+		}
+		w++
+	}
+	return w
+}
+
+// HitTest returns the button index (0-2) at the given X coordinate, or -1.
+func (m ActionBarModel) HitTest(x int) int {
+	for i, z := range m.zones {
+		if x >= z.startX && x < z.endX {
+			return i
+		}
+	}
+	return -1
 }
 
 // renderButton renders a single button based on its state.

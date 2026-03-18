@@ -105,6 +105,37 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.SetSize(m.width-2, viewportHeight)
 		return m, nil
 
+	case tea.MouseMsg:
+		if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
+			// Recompute button zones so HitTest works.
+			m.actionbar.View()
+			idx := m.actionbar.HitTest(msg.X)
+			// Accept clicks in the bottom region where the action bar lives.
+			if idx >= 0 && msg.Y >= m.height-actionBarHeight {
+				switch idx {
+				case 0: // Generate
+					if m.actionbar.GenerateEnabled() && m.viewport.HasChanges() {
+						cmd := m.triggerGenerate()
+						cmds = append(cmds, cmd...)
+					} else if !m.viewport.HasChanges() {
+						m.setStatus("No changes to generate a message for.", statusErr)
+						cmds = append(cmds, scheduleStatusClear())
+					}
+				case 1: // Commit
+					if m.actionbar.CommitEnabled() && m.viewport.HasMessage() {
+						cmd := m.triggerCommit()
+						cmds = append(cmds, cmd...)
+					}
+				case 2: // Push
+					if m.actionbar.PushEnabled() {
+						cmd := m.triggerPush()
+						cmds = append(cmds, cmd...)
+					}
+				}
+			}
+		}
+		return m, tea.Batch(cmds...)
+
 	case tea.KeyMsg:
 		// Any key press clears the status line.
 		m.statusEntry = nil
@@ -291,12 +322,19 @@ func (m AppModel) View() string {
 		helpView = "\n" + m.help.View(m.keys)
 	}
 
+	// Build layout parts — omit empty strings to avoid blank lines.
+	parts := []string{vpPanel}
+	if statusLine != "" {
+		parts = append(parts, statusLine)
+	}
+	parts = append(parts, abContent)
+	if helpView != "" {
+		parts = append(parts, helpView)
+	}
+
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
-		vpPanel,
-		statusLine,
-		abContent,
-		helpView,
+		parts...,
 	)
 }
 
