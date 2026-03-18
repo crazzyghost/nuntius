@@ -1,9 +1,9 @@
 package git
 
 import (
-"testing"
+	"testing"
 
-"github.com/crazzyghost/nuntius/internal/events"
+	"github.com/crazzyghost/nuntius/internal/events"
 )
 
 func TestParsePorcelainV2_OrdinaryModified(t *testing.T) {
