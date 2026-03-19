@@ -286,8 +286,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.statusEntry = nil
 
 	case unpushedMsg:
-		if msg.hasUnpushed {
-			m.actionbar.EnablePush()
+		if msg.count > 0 {
+			m.actionbar.EnablePush(msg.count)
 		}
 
 	default:

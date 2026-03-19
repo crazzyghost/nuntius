@@ -61,10 +61,11 @@ type buttonZone struct {
 
 // ActionBarModel is the bottom action bar containing the three buttons.
 type ActionBarModel struct {
-	buttons    [3]ButtonModel
-	focusIndex int
-	committed  bool // tracks whether a commit has happened
-	zones      [3]buttonZone
+	buttons       [3]ButtonModel
+	focusIndex    int
+	committed     bool // tracks whether a commit has happened
+	zones         [3]buttonZone
+	unpushedCount int
 }
 
 // NewActionBar creates a new action bar with Generate, Commit, and Push buttons.
@@ -208,8 +209,11 @@ func (m *ActionBarModel) View() string {
 		if i > 0 {
 			x += len(sep)
 		}
+		// Show unpushed count badge on the Push button.
+		if i == 2 && m.unpushedCount > 0 && btn.state == btnNormal {
+			btn.label = fmt.Sprintf("Push (%d↑)", m.unpushedCount)
+		}
 		rendered := renderButton(btn)
-		// Use the visible width (rune count) for hit zones.
 		w := visibleWidth(rendered)
 		m.zones[i] = buttonZone{startX: x, endX: x + w}
 		parts = append(parts, rendered)
@@ -333,8 +337,9 @@ func (m ActionBarModel) PushEnabled() bool {
 	return m.IsButtonEnabled(2)
 }
 
-// EnablePush enables the push button if it is currently disabled.
-func (m *ActionBarModel) EnablePush() {
+// EnablePush enables the push button and sets the unpushed commit count.
+func (m *ActionBarModel) EnablePush(count int) {
+	m.unpushedCount = count
 	if m.buttons[2].state == btnDisabled {
 		m.buttons[2].state = btnNormal
 		m.committed = true

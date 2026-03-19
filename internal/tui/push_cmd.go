@@ -18,14 +18,14 @@ func pushCmd(forceWithLease bool) tea.Cmd {
 	}
 }
 
-// unpushedMsg reports whether there are unpushed commits.
+// unpushedMsg reports the number of unpushed commits.
 type unpushedMsg struct {
-	hasUnpushed bool
+	count int
 }
 
-// checkUnpushedCmd checks if the current branch has unpushed commits.
+// checkUnpushedCmd checks how many unpushed commits exist.
 func checkUnpushedCmd() tea.Cmd {
 	return func() tea.Msg {
-		return unpushedMsg{hasUnpushed: git.HasUnpushedCommits()}
+		return unpushedMsg{count: git.UnpushedCount()}
 	}
 }

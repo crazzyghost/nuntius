@@ -3,6 +3,7 @@ package git
 import (
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 )
 
@@ -92,29 +93,31 @@ func BuildPushArgs(opts PushOptions) []string {
 	return args
 }
 
-// HasUnpushedCommits returns true if the current branch has commits
+// UnpushedCount returns the number of commits on the current branch
 // that haven't been pushed to its upstream tracking branch.
-func HasUnpushedCommits() bool {
+// Returns 0 if there are no unpushed commits or on error.
+func UnpushedCount() int {
 	remote, branch := parseCurrentRemoteBranch()
 	upstream := remote + "/" + branch
 
 	// Check if upstream ref exists.
 	checkCmd := exec.Command("git", "rev-parse", "--verify", upstream)
 	if err := checkCmd.Run(); err != nil {
-		// No upstream — treat local-only branch as having unpushed commits
-		// if it has any commits at all.
+		// No upstream — count all commits on this branch.
 		logCmd := exec.Command("git", "rev-list", "--count", "HEAD")
 		out, err := logCmd.Output()
 		if err != nil {
-			return false
+			return 0
 		}
-		return strings.TrimSpace(string(out)) != "0"
+		n, _ := strconv.Atoi(strings.TrimSpace(string(out)))
+		return n
 	}
 
 	cmd := exec.Command("git", "rev-list", "--count", upstream+"..HEAD")
 	out, err := cmd.Output()
 	if err != nil {
-		return false
+		return 0
 	}
-	return strings.TrimSpace(string(out)) != "0"
+	n, _ := strconv.Atoi(strings.TrimSpace(string(out)))
+	return n
 }
