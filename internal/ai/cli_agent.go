@@ -13,9 +13,10 @@ import (
 
 // installHints maps base command names to install instructions.
 var installHints = map[string]string{
-	"gh":     "brew install gh — https://cli.github.com",
-	"gemini": "pip install google-genai or npm install -g @anthropic-ai/gemini-cli",
-	"claude": "pip install claude-cli or npm install -g @anthropic-ai/claude-code",
+	"copilot": "https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/install-copilot-cli",
+	"gemini":  "https://geminicli.com/docs/get-started/installation/",
+	"claude":  "https://code.claude.com/docs/en/quickstart#step-1-install-claude-code",
+	"codex":   "https://developers.openai.com/codex/cli",
 }
 
 // CLIAgent implements the Provider interface by shelling out to a local
@@ -28,7 +29,7 @@ type CLIAgent struct {
 }
 
 // NewCLIAgent creates a CLI agent provider. The command is the base binary
-// (e.g. "gh", "gemini", "claude") and args are additional arguments.
+// (e.g. "copilot", "gemini", "claude") and args are additional arguments.
 // For "custom" providers, cfg.CLICommand and cfg.CLIArgs are used.
 func NewCLIAgent(cfg config.AIConfig, command string, args []string) (*CLIAgent, error) {
 	// Determine the base binary name for LookPath

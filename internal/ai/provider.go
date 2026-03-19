@@ -26,7 +26,7 @@ type ProviderMode string
 const (
 	// ModeAPI indicates an HTTP-based provider (Claude, Gemini, Codex, Copilot, Ollama).
 	ModeAPI ProviderMode = "api"
-	// ModeCLI indicates a local CLI-based provider (copilot-cli, gemini-cli, claude-cli).
+	// ModeCLI indicates a local CLI-based provider (copilot-cli, gemini-cli, claude-cli, codex-cli).
 	ModeCLI ProviderMode = "cli"
 )
 
@@ -63,6 +63,8 @@ func NewProvider(cfg config.AIConfig) (Provider, error) {
 		return NewCLIAgent(cfg, "gemini", nil)
 	case "claude-cli":
 		return NewCLIAgent(cfg, "claude", nil)
+	case "codex-cli":
+		return NewCLIAgent(cfg, "codex", nil)
 	case "custom":
 		if cfg.CLICommand == "" {
 			return nil, fmt.Errorf("provider %q requires cli_command to be set", cfg.Provider)
