@@ -26,8 +26,9 @@ type ViewportModel struct {
 	mode     viewMode
 	files    []events.FileStatus
 	message  string
-	loading  bool
-	spinner  spinner.Model
+	loading     bool
+	loadingText string
+	spinner     spinner.Model
 	ready    bool
 	width    int
 	height   int
@@ -84,6 +85,7 @@ func (m ViewportModel) Update(msg tea.Msg) (ViewportModel, tea.Cmd) {
 
 	case events.GenerateRequestedMsg:
 		m.loading = true
+		m.loadingText = "Generating commit message..."
 		m.updateContent()
 
 	case spinner.TickMsg:
@@ -216,7 +218,11 @@ func (m *ViewportModel) renderMessage() string {
 
 // renderLoading renders the loading state.
 func (m *ViewportModel) renderLoading() string {
-	return fmt.Sprintf("\n\n  %s Generating commit message...", m.spinner.View())
+	text := m.loadingText
+	if text == "" {
+		text = "Loading..."
+	}
+	return fmt.Sprintf("\n\n  %s %s", m.spinner.View(), text)
 }
 
 // Mode returns the current display mode.
@@ -264,6 +270,19 @@ func (m *ViewportModel) SwitchToFileList() {
 func (m *ViewportModel) ClearMessage() {
 	m.message = ""
 	m.mode = fileListMode
+	m.updateContent()
+}
+
+// SetLoading puts the viewport into loading state with a custom message.
+func (m *ViewportModel) SetLoading(text string) {
+	m.loading = true
+	m.loadingText = text
+	m.updateContent()
+}
+
+// ClearLoading exits the loading state and refreshes content.
+func (m *ViewportModel) ClearLoading() {
+	m.loading = false
 	m.updateContent()
 }
 

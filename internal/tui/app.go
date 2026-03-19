@@ -270,6 +270,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.actionbar, cmd = m.actionbar.Update(msg)
 		cmds = append(cmds, cmd)
+		m.viewport.ClearLoading()
 		if msg.Err != nil {
 			m.setStatus(fmt.Sprintf("Push failed: %v", msg.Err), statusErr)
 		} else {
@@ -376,6 +377,12 @@ func (m *AppModel) triggerCommit() []tea.Cmd {
 // triggerPush dispatches the push flow.
 func (m *AppModel) triggerPush() []tea.Cmd {
 	m.actionbar.SetPushLoading()
+	count := m.actionbar.UnpushedCount()
+	if count > 0 {
+		m.viewport.SetLoading(fmt.Sprintf("Pushing %d commit(s)...", count))
+	} else {
+		m.viewport.SetLoading("Pushing...")
+	}
 	return []tea.Cmd{pushCmd(m.config.Behavior.ForcePush)}
 }
 

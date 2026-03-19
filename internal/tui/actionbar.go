@@ -372,6 +372,11 @@ func (m *ActionBarModel) SetPushLoading() {
 	m.buttons[2].state = btnLoading
 }
 
+// UnpushedCount returns the current unpushed commit count.
+func (m *ActionBarModel) UnpushedCount() int {
+	return m.unpushedCount
+}
+
 // SetGenerateEnabled enables or disables the Generate button.
 func (m *ActionBarModel) SetGenerateEnabled(enabled bool) {
 	if m.buttons[0].state == btnLoading {
