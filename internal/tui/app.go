@@ -78,6 +78,8 @@ func (m AppModel) Init() tea.Cmd {
 		m.actionbar.Init(),
 		// Fetch current git status immediately so existing changes are visible.
 		refreshStatusCmd(),
+		// Check for unpushed commits to enable Push button.
+		checkUnpushedCmd(),
 	}
 
 	// Start listening for watcher events if a watcher is wired in.
@@ -213,6 +215,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.viewport, cmd = m.viewport.Update(msg)
 		cmds = append(cmds, cmd)
+		// Re-check for unpushed commits (e.g. external commit).
+		cmds = append(cmds, checkUnpushedCmd())
 		// Keep listening for more watcher events.
 		if m.watcher != nil {
 			cmds = append(cmds, waitForFileChange(m.watcher))
@@ -280,6 +284,11 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case statusClearMsg:
 		m.statusEntry = nil
+
+	case unpushedMsg:
+		if msg.hasUnpushed {
+			m.actionbar.EnablePush()
+		}
 
 	default:
 		// Forward spinner ticks and other messages.

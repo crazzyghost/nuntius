@@ -332,3 +332,11 @@ func (m ActionBarModel) CommitEnabled() bool {
 func (m ActionBarModel) PushEnabled() bool {
 	return m.IsButtonEnabled(2)
 }
+
+// EnablePush enables the push button if it is currently disabled.
+func (m *ActionBarModel) EnablePush() {
+	if m.buttons[2].state == btnDisabled {
+		m.buttons[2].state = btnNormal
+		m.committed = true
+	}
+}

@@ -91,3 +91,30 @@ func BuildPushArgs(opts PushOptions) []string {
 	}
 	return args
 }
+
+// HasUnpushedCommits returns true if the current branch has commits
+// that haven't been pushed to its upstream tracking branch.
+func HasUnpushedCommits() bool {
+	remote, branch := parseCurrentRemoteBranch()
+	upstream := remote + "/" + branch
+
+	// Check if upstream ref exists.
+	checkCmd := exec.Command("git", "rev-parse", "--verify", upstream)
+	if err := checkCmd.Run(); err != nil {
+		// No upstream — treat local-only branch as having unpushed commits
+		// if it has any commits at all.
+		logCmd := exec.Command("git", "rev-list", "--count", "HEAD")
+		out, err := logCmd.Output()
+		if err != nil {
+			return false
+		}
+		return strings.TrimSpace(string(out)) != "0"
+	}
+
+	cmd := exec.Command("git", "rev-list", "--count", upstream+"..HEAD")
+	out, err := cmd.Output()
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(string(out)) != "0"
+}
