@@ -227,7 +227,7 @@ func TestAppTabCyclesFocus(t *testing.T) {
 
 	// Tab should cycle focus.
 	model, _ = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyTab}))
-	m = model.(AppModel)
+	_ = model.(AppModel)
 	// Just verify it doesn't panic.
 }
 

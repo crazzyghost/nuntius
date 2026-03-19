@@ -84,7 +84,7 @@ func (c *Codex) GenerateCommitMessage(ctx context.Context, req MessageRequest) (
 	if err != nil {
 		return "", fmt.Errorf("codex: request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {

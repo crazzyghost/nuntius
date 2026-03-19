@@ -82,7 +82,7 @@ func (o *Ollama) GenerateCommitMessage(ctx context.Context, req MessageRequest) 
 	if err != nil {
 		return "", fmt.Errorf("ollama: Ollama not running at %s — %w", o.baseURL, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -117,7 +117,7 @@ func (o *Ollama) validateModel(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("ollama: Ollama not running at %s — %w", o.baseURL, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {

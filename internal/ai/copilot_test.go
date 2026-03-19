@@ -27,7 +27,7 @@ func TestCopilot_GenerateCommitMessage_Success(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
@@ -55,7 +55,7 @@ func TestCopilot_GenerateCommitMessage_Success(t *testing.T) {
 func TestCopilot_GenerateCommitMessage_APIError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
-		w.Write([]byte(`{"error": "forbidden"}`))
+		_, _ = w.Write([]byte(`{"error": "forbidden"}`))
 	}))
 	defer srv.Close()
 

@@ -23,8 +23,10 @@ func TestRunHelp(t *testing.T) {
 func TestRunNoGitRepo(t *testing.T) {
 	dir := t.TempDir()
 	origDir, _ := os.Getwd()
-	defer os.Chdir(origDir)
-	os.Chdir(dir)
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
 
 	code := run([]string{})
 	if code != 1 {
@@ -35,14 +37,22 @@ func TestRunNoGitRepo(t *testing.T) {
 func TestSetupInGitRepo(t *testing.T) {
 	dir := t.TempDir()
 	origDir, _ := os.Getwd()
-	defer os.Chdir(origDir)
-	os.Chdir(dir)
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
 
 	// Create a minimal .git directory structure for the watcher.
 	gitDir := filepath.Join(dir, ".git")
-	os.Mkdir(gitDir, 0755)
-	os.Mkdir(filepath.Join(gitDir, "refs"), 0755)
-	os.Mkdir(filepath.Join(gitDir, "refs", "heads"), 0755)
+	if err := os.Mkdir(gitDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(gitDir, "refs"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(gitDir, "refs", "heads"), 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	result, exitCode, shouldLaunch := setup([]string{})
 	if exitCode != 0 {
@@ -63,13 +73,21 @@ func TestSetupInGitRepo(t *testing.T) {
 func TestSetupFlagOverrides(t *testing.T) {
 	dir := t.TempDir()
 	origDir, _ := os.Getwd()
-	defer os.Chdir(origDir)
-	os.Chdir(dir)
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
 
 	gitDir := filepath.Join(dir, ".git")
-	os.Mkdir(gitDir, 0755)
-	os.Mkdir(filepath.Join(gitDir, "refs"), 0755)
-	os.Mkdir(filepath.Join(gitDir, "refs", "heads"), 0755)
+	if err := os.Mkdir(gitDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(gitDir, "refs"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(gitDir, "refs", "heads"), 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	result, exitCode, shouldLaunch := setup([]string{"--provider", "gemini", "--model", "flash", "--auto-commit"})
 	if exitCode != 0 {

@@ -68,7 +68,7 @@ func setup(args []string) (*setupResult, int, bool) {
 	})
 
 	if *showVersion {
-		fmt.Printf("nuntius %s\n", version)
+		fmt.Printf("nuntius %s (commit=%s, built=%s)\n", version, commit, date)
 		return nil, 0, false
 	}
 

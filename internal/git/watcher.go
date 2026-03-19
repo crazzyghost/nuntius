@@ -38,7 +38,7 @@ func NewWatcher(repoPath string) (*Watcher, error) {
 	// Watch the .git directory for changes
 	gitDir := filepath.Join(repoPath, ".git")
 	if err := fsw.Add(gitDir); err != nil {
-		fsw.Close()
+		_ = fsw.Close()
 		return nil, err
 	}
 
@@ -62,7 +62,7 @@ func NewWatcher(repoPath string) (*Watcher, error) {
 // Start begins watching for file system events. It blocks until the
 // context is cancelled or Stop is called. Should be run in a goroutine.
 func (w *Watcher) Start(ctx context.Context) error {
-	defer w.watcher.Close()
+	defer func() { _ = w.watcher.Close() }()
 
 	var timer *time.Timer
 	var timerC <-chan time.Time

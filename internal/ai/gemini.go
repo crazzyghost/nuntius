@@ -87,7 +87,7 @@ func (g *Gemini) GenerateCommitMessage(ctx context.Context, req MessageRequest) 
 	if err != nil {
 		return "", fmt.Errorf("gemini: request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {

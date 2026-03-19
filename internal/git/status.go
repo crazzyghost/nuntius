@@ -89,8 +89,8 @@ func parsePorcelainV2(output string) ([]events.FileStatus, error) {
 				Staged: false,
 			})
 
-		case strings.HasPrefix(line, "! "):
-			// Ignored — skip
+		default:
+			// Ignored or unrecognized — skip
 			continue
 		}
 	}
@@ -134,13 +134,14 @@ func parseRenamedEntry(line string) ([]events.FileStatus, error) {
 	indexCode := xy[0]
 	worktreeCode := xy[1]
 
-	if indexCode == 'R' {
+	switch indexCode {
+	case 'R':
 		files = append(files, events.FileStatus{
 			Path:   newPath,
 			Status: "renamed",
 			Staged: true,
 		})
-	} else if indexCode == 'C' {
+	case 'C':
 		files = append(files, events.FileStatus{
 			Path:   newPath,
 			Status: "copied",

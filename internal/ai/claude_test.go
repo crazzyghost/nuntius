@@ -26,7 +26,9 @@ func TestClaude_GenerateCommitMessage_Success(t *testing.T) {
 
 		// Verify request body structure
 		var body map[string]any
-		json.NewDecoder(r.Body).Decode(&body)
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decode request body: %v", err)
+		}
 		if body["model"] != claudeDefaultModel {
 			t.Errorf("model = %v, want %v", body["model"], claudeDefaultModel)
 		}
@@ -37,7 +39,7 @@ func TestClaude_GenerateCommitMessage_Success(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
@@ -90,7 +92,7 @@ func TestClaude_GenerateCommitMessage_RateLimit(t *testing.T) {
 func TestClaude_GenerateCommitMessage_APIError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"error": "internal"}`))
+		_, _ = w.Write([]byte(`{"error": "internal"}`))
 	}))
 	defer srv.Close()
 

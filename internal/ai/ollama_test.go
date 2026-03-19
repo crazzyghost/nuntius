@@ -21,11 +21,13 @@ func newOllamaTestServer(t *testing.T, model string, response string) *httptest.
 					{"name": model + ":latest"},
 				},
 			}
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 
 		case "/api/generate":
 			var body map[string]any
-			json.NewDecoder(r.Body).Decode(&body)
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Errorf("decode request body: %v", err)
+			}
 			if body["stream"] != false {
 				t.Errorf("stream should be false")
 			}
@@ -34,7 +36,7 @@ func newOllamaTestServer(t *testing.T, model string, response string) *httptest.
 				"response": response,
 				"done":     true,
 			}
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 
 		default:
 			w.WriteHeader(http.StatusNotFound)
@@ -68,7 +70,7 @@ func TestOllama_ModelNotFound(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Return empty model list
 		resp := map[string]any{"models": []any{}}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
@@ -161,10 +163,10 @@ func TestOllama_APIError(t *testing.T) {
 			resp := map[string]any{
 				"models": []map[string]string{{"name": "llama3.2:latest"}},
 			}
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 		case "/api/generate":
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("internal error"))
+			_, _ = w.Write([]byte("internal error"))
 		}
 	}))
 	defer srv.Close()

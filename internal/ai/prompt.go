@@ -52,7 +52,7 @@ func BuildPrompt(req MessageRequest) string {
 		} else if len(req.Diff) > remaining {
 			b.WriteString(req.Diff[:remaining])
 			b.WriteString("\n\n[diff truncated — showing first ")
-			b.WriteString(fmt.Sprintf("%d", remaining))
+			fmt.Fprintf(&b, "%d", remaining)
 			b.WriteString(" bytes]\n")
 		} else {
 			b.WriteString(req.Diff)

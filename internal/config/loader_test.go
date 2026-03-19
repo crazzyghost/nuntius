@@ -10,10 +10,10 @@ func TestLoadNoFile(t *testing.T) {
 	// Load from a directory with no config files — should return defaults
 	dir := t.TempDir()
 	origDir, _ := os.Getwd()
-	defer os.Chdir(origDir)
-	os.Chdir(dir)
-
-	// Clear any env vars that could interfere
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
 	clearNuntiusEnv(t)
 
 	cfg, err := Load()
@@ -33,8 +33,10 @@ func TestLoadNoFile(t *testing.T) {
 func TestLoadRepoFile(t *testing.T) {
 	dir := t.TempDir()
 	origDir, _ := os.Getwd()
-	defer os.Chdir(origDir)
-	os.Chdir(dir)
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
 
 	clearNuntiusEnv(t)
 
@@ -79,20 +81,26 @@ style = "gitmoji"
 func TestLoadGlobalFile(t *testing.T) {
 	dir := t.TempDir()
 	origDir, _ := os.Getwd()
-	defer os.Chdir(origDir)
-	os.Chdir(dir)
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
 
 	clearNuntiusEnv(t)
 
 	// Create a fake global config
 	globalDir := filepath.Join(dir, "fakeconfig", "nuntius")
-	os.MkdirAll(globalDir, 0755)
+	if err := os.MkdirAll(globalDir, 0755); err != nil {
+		t.Fatal(err)
+	}
 	globalFile := filepath.Join(globalDir, "config.toml")
 	tomlContent := `
 [ai]
 provider = "ollama"
 `
-	os.WriteFile(globalFile, []byte(tomlContent), 0644)
+	if err := os.WriteFile(globalFile, []byte(tomlContent), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	// We can't easily test global config path without mocking os.UserConfigDir,
 	// so instead we test loadTOML directly
@@ -109,8 +117,10 @@ provider = "ollama"
 func TestLoadEnvOverride(t *testing.T) {
 	dir := t.TempDir()
 	origDir, _ := os.Getwd()
-	defer os.Chdir(origDir)
-	os.Chdir(dir)
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
 
 	clearNuntiusEnv(t)
 
@@ -119,7 +129,9 @@ func TestLoadEnvOverride(t *testing.T) {
 [ai]
 provider = "claude"
 `
-	os.WriteFile(filepath.Join(dir, ".nuntius.toml"), []byte(tomlContent), 0644)
+	if err := os.WriteFile(filepath.Join(dir, ".nuntius.toml"), []byte(tomlContent), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	// Set env var to override
 	t.Setenv("NUNTIUS_AI_PROVIDER", "codex")
@@ -145,12 +157,16 @@ provider = "claude"
 func TestLoadInvalidTOML(t *testing.T) {
 	dir := t.TempDir()
 	origDir, _ := os.Getwd()
-	defer os.Chdir(origDir)
-	os.Chdir(dir)
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
 
 	clearNuntiusEnv(t)
 
-	os.WriteFile(filepath.Join(dir, ".nuntius.toml"), []byte("{{invalid toml content}}"), 0644)
+	if err := os.WriteFile(filepath.Join(dir, ".nuntius.toml"), []byte("{{invalid toml content}}"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	_, err := Load()
 	if err == nil {
@@ -201,6 +217,6 @@ func clearNuntiusEnv(t *testing.T) {
 	}
 	for _, env := range envVars {
 		t.Setenv(env, "")
-		os.Unsetenv(env)
+		_ = os.Unsetenv(env)
 	}
 }

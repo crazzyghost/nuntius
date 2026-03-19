@@ -19,7 +19,9 @@ func TestCodex_GenerateCommitMessage_Success(t *testing.T) {
 		}
 
 		var body map[string]any
-		json.NewDecoder(r.Body).Decode(&body)
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decode request body: %v", err)
+		}
 		if body["model"] != codexDefaultModel {
 			t.Errorf("model = %v, want %v", body["model"], codexDefaultModel)
 		}
@@ -34,7 +36,7 @@ func TestCodex_GenerateCommitMessage_Success(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
@@ -62,7 +64,7 @@ func TestCodex_GenerateCommitMessage_Success(t *testing.T) {
 func TestCodex_GenerateCommitMessage_APIError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error": "invalid key"}`))
+		_, _ = w.Write([]byte(`{"error": "invalid key"}`))
 	}))
 	defer srv.Close()
 
@@ -126,7 +128,7 @@ func TestCodex_NameAndMode(t *testing.T) {
 func TestCodex_EmptyResponse(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]any{"choices": []any{}}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
