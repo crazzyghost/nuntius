@@ -91,6 +91,8 @@ func TestDetectConventionExplicitStyle(t *testing.T) {
 }
 
 func TestDetectConventionAutoMode(t *testing.T) {
+	t.Chdir(t.TempDir())
+
 	cfg := DefaultConfig()
 	cfg.Conventions.Style = "auto"
 
