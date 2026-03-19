@@ -10,8 +10,8 @@ import (
 func TestNewActionBar(t *testing.T) {
 	ab := NewActionBar()
 
-	if !ab.GenerateEnabled() {
-		t.Error("Generate should be enabled initially")
+	if ab.GenerateEnabled() {
+		t.Error("Generate should be disabled initially (no changes)")
 	}
 	if ab.CommitEnabled() {
 		t.Error("Commit should be disabled initially")
@@ -26,6 +26,8 @@ func TestNewActionBar(t *testing.T) {
 
 func TestActionBarGenerateFlow(t *testing.T) {
 	ab := NewActionBar()
+	// Enable generate (simulating changes detected).
+	ab.SetGenerateEnabled(true)
 
 	// Request generation.
 	ab, _ = ab.Update(events.GenerateRequestedMsg{})

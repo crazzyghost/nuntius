@@ -215,6 +215,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.viewport, cmd = m.viewport.Update(msg)
 		cmds = append(cmds, cmd)
+		// Enable/disable Generate based on whether there are changes.
+		m.actionbar.SetGenerateEnabled(len(msg.Files) > 0)
 		// Re-check for unpushed commits (e.g. external commit).
 		cmds = append(cmds, checkUnpushedCmd())
 		// Keep listening for more watcher events.

@@ -79,7 +79,8 @@ func NewActionBar() ActionBarModel {
 		},
 		focusIndex: 0,
 	}
-	// Commit and Push start disabled.
+	// All buttons start disabled until changes are detected.
+	ab.buttons[0].state = btnDisabled
 	ab.buttons[1].state = btnDisabled
 	ab.buttons[2].state = btnDisabled
 	return ab
@@ -346,5 +347,17 @@ func (m *ActionBarModel) EnablePush(count int) {
 	if m.buttons[2].state == btnDisabled {
 		m.buttons[2].state = btnNormal
 		m.committed = true
+	}
+}
+
+// SetGenerateEnabled enables or disables the Generate button.
+func (m *ActionBarModel) SetGenerateEnabled(enabled bool) {
+	if m.buttons[0].state == btnLoading {
+		return // don't interrupt in-progress generation
+	}
+	if enabled {
+		m.buttons[0].state = btnNormal
+	} else {
+		m.buttons[0].state = btnDisabled
 	}
 }
