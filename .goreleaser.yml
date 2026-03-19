@@ -24,6 +24,7 @@ homebrew_casks:
   - repository:
       owner: crazzyghost
       name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     homepage: https://github.com/crazzyghost/nuntius
     description: AI-powered commit message generator TUI
     hooks:
