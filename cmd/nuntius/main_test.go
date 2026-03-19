@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -16,7 +18,25 @@ func TestRunVersion(t *testing.T) {
 func TestRunHelp(t *testing.T) {
 	code := run([]string{"--help"})
 	if code != 1 {
-		t.Errorf("expected exit code 1 for --help (ContinueOnError), got %d", code)
+		t.Errorf("expected exit code 1 for --help, got %d", code)
+	}
+}
+
+func TestHelpOutputUsesDoubleDashFlags(t *testing.T) {
+	var stderr bytes.Buffer
+	flags, _, _, _, _, _ := newFlagSet(&stderr)
+	flags.Usage()
+
+	output := stderr.String()
+	for _, want := range []string{"--version", "--provider", "--model", "--auto-commit", "--auto-push"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("expected help output to contain %q, got %q", want, output)
+		}
+	}
+	for _, unwanted := range []string{"  -version", "  -provider", "  -model", "  -auto-commit", "  -auto-push"} {
+		if strings.Contains(output, unwanted) {
+			t.Fatalf("expected help output not to contain %q, got %q", unwanted, output)
+		}
 	}
 }
 
@@ -44,13 +64,13 @@ func TestSetupInGitRepo(t *testing.T) {
 
 	// Create a minimal .git directory structure for the watcher.
 	gitDir := filepath.Join(dir, ".git")
-	if err := os.Mkdir(gitDir, 0755); err != nil {
+	if err := os.Mkdir(gitDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Mkdir(filepath.Join(gitDir, "refs"), 0755); err != nil {
+	if err := os.Mkdir(filepath.Join(gitDir, "refs"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Mkdir(filepath.Join(gitDir, "refs", "heads"), 0755); err != nil {
+	if err := os.Mkdir(filepath.Join(gitDir, "refs", "heads"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -79,13 +99,13 @@ func TestSetupFlagOverrides(t *testing.T) {
 	}
 
 	gitDir := filepath.Join(dir, ".git")
-	if err := os.Mkdir(gitDir, 0755); err != nil {
+	if err := os.Mkdir(gitDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Mkdir(filepath.Join(gitDir, "refs"), 0755); err != nil {
+	if err := os.Mkdir(filepath.Join(gitDir, "refs"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Mkdir(filepath.Join(gitDir, "refs", "heads"), 0755); err != nil {
+	if err := os.Mkdir(filepath.Join(gitDir, "refs", "heads"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 

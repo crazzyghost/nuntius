@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
+	"io"
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
+	pflag "github.com/spf13/pflag"
 
 	"github.com/crazzyghost/nuntius/internal/ai"
 	"github.com/crazzyghost/nuntius/internal/config"
@@ -28,37 +29,24 @@ func main() {
 
 // setupResult holds everything needed to launch the TUI.
 type setupResult struct {
-	cfg         config.Config
-	app         tui.AppModel
-	watcher     *git.Watcher
-	cancel      context.CancelFunc
+	cfg     config.Config
+	app     tui.AppModel
+	watcher *git.Watcher
+	cancel  context.CancelFunc
 }
 
 // setup parses flags, loads config, creates provider/watcher, and returns
 // a setupResult ready to launch. Returns (result, exitCode, shouldLaunch).
 func setup(args []string) (*setupResult, int, bool) {
-	flags := flag.NewFlagSet("nuntius", flag.ContinueOnError)
-
-	showVersion := flags.Bool("version", false, "Print version and exit")
-	provider := flags.String("provider", "", "AI provider override")
-	model := flags.String("model", "", "AI model override")
-	autoCommit := flags.Bool("auto-commit", false, "Auto-commit after generation")
+	flags, showVersion, provider, model, autoCommit, autoPush := newFlagSet(os.Stderr)
 	autoCommitSet := false
-	autoPush := flags.Bool("auto-push", false, "Auto-push after commit")
 	autoPushSet := false
-
-	flags.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: nuntius [flags]\n\n")
-		fmt.Fprintf(os.Stderr, "Nuntius watches a Git repo for changes and generates AI-powered commit messages.\n\n")
-		fmt.Fprintf(os.Stderr, "Flags:\n")
-		flags.PrintDefaults()
-	}
 
 	if err := flags.Parse(args); err != nil {
 		return nil, 1, false
 	}
 
-	flags.Visit(func(f *flag.Flag) {
+	flags.Visit(func(f *pflag.Flag) {
 		switch f.Name {
 		case "auto-commit":
 			autoCommitSet = true
@@ -160,9 +148,29 @@ func run(args []string) int {
 	return 0
 }
 
+func newFlagSet(output io.Writer) (*pflag.FlagSet, *bool, *string, *string, *bool, *bool) {
+	flags := pflag.NewFlagSet("nuntius", pflag.ContinueOnError)
+	flags.SetOutput(output)
+	flags.SortFlags = false
+
+	showVersion := flags.Bool("version", false, "Print version and exit")
+	provider := flags.String("provider", "", "AI provider override")
+	model := flags.String("model", "", "AI model override")
+	autoCommit := flags.Bool("auto-commit", false, "Auto-commit after generation")
+	autoPush := flags.Bool("auto-push", false, "Auto-push after commit")
+
+	flags.Usage = func() {
+		fmt.Fprintf(flags.Output(), "Usage: nuntius [flags]\n\n")
+		fmt.Fprintf(flags.Output(), "Nuntius watches a Git repo for changes and generates AI-powered commit messages.\n\n")
+		fmt.Fprintf(flags.Output(), "Flags:\n")
+		flags.PrintDefaults()
+	}
+
+	return flags, showVersion, provider, model, autoCommit, autoPush
+}
+
 // isGitRepo checks if the current directory is inside a Git repository.
 func isGitRepo() bool {
 	_, err := os.Stat(".git")
 	return err == nil
 }
-
