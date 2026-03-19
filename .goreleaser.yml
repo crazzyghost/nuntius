@@ -15,18 +15,24 @@ builds:
 archives:
   - format_overrides:
       - goos: windows
-        format: zip
+        formats: [zip]
 
 checksum:
   name_template: checksums.txt
 
-brews:
+homebrew_casks:
   - repository:
       owner: crazzyghost
       name: homebrew-tap
     homepage: https://github.com/crazzyghost/nuntius
     description: AI-powered commit message generator TUI
     license: MIT
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/nuntius"]
+          end
     test: |
       system "#{bin}/nuntius", "--version"
 
