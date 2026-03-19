@@ -1,6 +1,7 @@
 version: "2"
 
 linters:
+  default: standard
   enable:
     - errcheck
     - govet
@@ -8,7 +9,6 @@ linters:
     - unused
     - ineffassign
     - gosimple
-
-issues:
-  exclude-dirs:
-    - vendor
+  exclusions:
+    paths:
+      - vendor
