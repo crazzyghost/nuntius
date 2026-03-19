@@ -123,7 +123,7 @@ func (m ViewportModel) headerView() string {
 	var title string
 	switch {
 	case m.loading:
-		title = fmt.Sprintf("%s Generating...", m.spinner.View())
+		title = Title.Render("📂 Changed Files")
 	case m.mode == messageMode:
 		title = Title.Render("📝 Commit Message")
 	default:
@@ -216,7 +216,7 @@ func (m *ViewportModel) renderMessage() string {
 
 // renderLoading renders the loading state.
 func (m *ViewportModel) renderLoading() string {
-	return fmt.Sprintf("\n  %s Generating commit message...\n\n  Analyzing changes and conventions...", m.spinner.View())
+	return fmt.Sprintf("\n\n  %s Generating commit message...", m.spinner.View())
 }
 
 // Mode returns the current display mode.
