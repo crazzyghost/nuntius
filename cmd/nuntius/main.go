@@ -14,8 +14,12 @@ import (
 	"github.com/crazzyghost/nuntius/internal/tui"
 )
 
-// version is injected at build time via -ldflags.
-var version = "dev"
+// Build-time variables injected via -ldflags.
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
 
 func main() {
 	exitCode := run(os.Args[1:])
