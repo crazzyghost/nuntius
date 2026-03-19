@@ -65,6 +65,7 @@ type ActionBarModel struct {
 	focusIndex      int
 	committed       bool // tracks whether a commit has happened
 	messageConsumed bool // true after commit consumes the generated message
+	pushed          bool // true after a successful push (reset by new unpushed commits)
 	zones           [3]buttonZone
 	unpushedCount   int
 }
@@ -135,6 +136,8 @@ func (m ActionBarModel) Update(msg tea.Msg) (ActionBarModel, tea.Cmd) {
 			m.buttons[2].state = btnSuccess
 			m.buttons[2].feedback = "✓ Pushed"
 			m.buttons[2].feedbackN = feedbackDuration
+			m.unpushedCount = 0
+			m.pushed = true
 		}
 		cmds = append(cmds, clearButtonAfterDelay(2))
 
@@ -173,7 +176,9 @@ func (m ActionBarModel) Update(msg tea.Msg) (ActionBarModel, tea.Cmd) {
 					btn.state = btnDisabled
 				}
 			case 2:
-				if m.committed {
+				if m.pushed || m.unpushedCount == 0 {
+					btn.state = btnDisabled
+				} else if m.committed {
 					btn.state = btnNormal
 				} else {
 					btn.state = btnDisabled
@@ -213,9 +218,20 @@ func (m *ActionBarModel) View() string {
 		if i > 0 {
 			x += len(sep)
 		}
-		// Show unpushed count badge on the Push button.
-		if i == 2 && m.unpushedCount > 0 && btn.state == btnNormal {
-			btn.label = fmt.Sprintf("Push (%d↑)", m.unpushedCount)
+		// Customize Push button label based on state.
+		if i == 2 {
+			switch btn.state {
+			case btnNormal:
+				if m.unpushedCount > 0 {
+					btn.label = fmt.Sprintf("Push (%d↑)", m.unpushedCount)
+				}
+			case btnLoading:
+				if m.unpushedCount > 0 {
+					btn.label = fmt.Sprintf("Pushing (%d) commits", m.unpushedCount)
+				} else {
+					btn.label = "Pushing..."
+				}
+			}
 		}
 		rendered := renderButton(btn)
 		w := visibleWidth(rendered)
@@ -344,10 +360,16 @@ func (m ActionBarModel) PushEnabled() bool {
 // EnablePush enables the push button and sets the unpushed commit count.
 func (m *ActionBarModel) EnablePush(count int) {
 	m.unpushedCount = count
+	m.pushed = false
 	if m.buttons[2].state == btnDisabled {
 		m.buttons[2].state = btnNormal
 		m.committed = true
 	}
+}
+
+// SetPushLoading puts the push button into loading state.
+func (m *ActionBarModel) SetPushLoading() {
+	m.buttons[2].state = btnLoading
 }
 
 // SetGenerateEnabled enables or disables the Generate button.

@@ -375,6 +375,7 @@ func (m *AppModel) triggerCommit() []tea.Cmd {
 
 // triggerPush dispatches the push flow.
 func (m *AppModel) triggerPush() []tea.Cmd {
+	m.actionbar.SetPushLoading()
 	return []tea.Cmd{pushCmd(m.config.Behavior.ForcePush)}
 }
 
