@@ -251,8 +251,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.setStatus(fmt.Sprintf("Commit failed: %v", msg.Err), statusErr)
 		} else {
 			m.setStatus(fmt.Sprintf("Committed: %s", msg.Hash), statusSuccess)
-			// Switch viewport back to file list and refresh.
-			m.viewport.SwitchToFileList()
+			// Clear the consumed message and switch back to file list.
+			m.viewport.ClearMessage()
 			cmds = append(cmds, refreshStatusCmd())
 
 			// Auto-push: chain into push after commit.

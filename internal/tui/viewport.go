@@ -260,6 +260,13 @@ func (m *ViewportModel) SwitchToFileList() {
 	m.updateContent()
 }
 
+// ClearMessage clears the generated message and switches to file list mode.
+func (m *ViewportModel) ClearMessage() {
+	m.message = ""
+	m.mode = fileListMode
+	m.updateContent()
+}
+
 // SwitchToMessage switches the viewport to message mode.
 func (m *ViewportModel) SwitchToMessage() {
 	if m.message != "" {

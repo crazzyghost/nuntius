@@ -61,11 +61,12 @@ type buttonZone struct {
 
 // ActionBarModel is the bottom action bar containing the three buttons.
 type ActionBarModel struct {
-	buttons       [3]ButtonModel
-	focusIndex    int
-	committed     bool // tracks whether a commit has happened
-	zones         [3]buttonZone
-	unpushedCount int
+	buttons         [3]ButtonModel
+	focusIndex      int
+	committed       bool // tracks whether a commit has happened
+	messageConsumed bool // true after commit consumes the generated message
+	zones           [3]buttonZone
+	unpushedCount   int
 }
 
 // NewActionBar creates a new action bar with Generate, Commit, and Push buttons.
@@ -104,8 +105,9 @@ func (m ActionBarModel) Update(msg tea.Msg) (ActionBarModel, tea.Cmd) {
 
 	case events.MessageReadyMsg:
 		m.buttons[0].state = btnNormal
-		// Enable commit button.
+		// Enable commit button — new message is ready.
 		m.buttons[1].state = btnNormal
+		m.messageConsumed = false
 
 	case events.CommitResultMsg:
 		if msg.Err != nil {
@@ -117,6 +119,7 @@ func (m ActionBarModel) Update(msg tea.Msg) (ActionBarModel, tea.Cmd) {
 			m.buttons[1].feedback = fmt.Sprintf("✓ %s", msg.Hash)
 			m.buttons[1].feedbackN = feedbackDuration
 			m.committed = true
+			m.messageConsumed = true
 			// Enable push button.
 			m.buttons[2].state = btnNormal
 		}
@@ -163,7 +166,7 @@ func (m ActionBarModel) Update(msg tea.Msg) (ActionBarModel, tea.Cmd) {
 			case 0:
 				btn.state = btnNormal
 			case 1:
-				if m.buttons[0].state != btnDisabled {
+				if !m.messageConsumed {
 					btn.state = btnNormal
 				} else {
 					btn.state = btnDisabled
