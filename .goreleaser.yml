@@ -20,6 +20,16 @@ archives:
 checksum:
   name_template: checksums.txt
 
+brews:
+  - repository:
+      owner: crazzyghost
+      name: homebrew-tap
+    homepage: https://github.com/crazzyghost/nuntius
+    description: AI-powered commit message generator TUI
+    license: MIT
+    test: |
+      system "#{bin}/nuntius", "--version"
+
 changelog:
   sort: asc
   filters:
