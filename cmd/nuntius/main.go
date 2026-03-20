@@ -38,7 +38,7 @@ type setupResult struct {
 // setup parses flags, loads config, creates provider/watcher, and returns
 // a setupResult ready to launch. Returns (result, exitCode, shouldLaunch).
 func setup(args []string) (*setupResult, int, bool) {
-	flags, showVersion, provider, model, autoCommit, autoPush := newFlagSet(os.Stderr)
+	flags, showVersion, provider, model, autoCommit, autoPush, noUpdateCheck := newFlagSet(os.Stderr)
 	autoCommitSet := false
 	autoPushSet := false
 
@@ -117,9 +117,13 @@ func setup(args []string) (*setupResult, int, bool) {
 	// Build the TUI model.
 	app := tui.NewApp(cfg).
 		WithWatcher(watcher).
-		WithConventions(conventions)
+		WithConventions(conventions).
+		WithVersion(version, date)
 	if aiProvider != nil {
 		app = app.WithProvider(aiProvider)
+	}
+	if *noUpdateCheck {
+		app = app.WithNoUpdateCheck()
 	}
 
 	return &setupResult{
@@ -148,7 +152,7 @@ func run(args []string) int {
 	return 0
 }
 
-func newFlagSet(output io.Writer) (*pflag.FlagSet, *bool, *string, *string, *bool, *bool) {
+func newFlagSet(output io.Writer) (*pflag.FlagSet, *bool, *string, *string, *bool, *bool, *bool) {
 	flags := pflag.NewFlagSet("nuntius", pflag.ContinueOnError)
 	flags.SetOutput(output)
 	flags.SortFlags = false
@@ -158,15 +162,16 @@ func newFlagSet(output io.Writer) (*pflag.FlagSet, *bool, *string, *string, *boo
 	model := flags.String("model", "", "AI model override")
 	autoCommit := flags.Bool("auto-commit", false, "Auto-commit after generation")
 	autoPush := flags.Bool("auto-push", false, "Auto-push after commit")
+	noUpdateCheck := flags.Bool("no-update-check", false, "Disable startup version check")
 
 	flags.Usage = func() {
-		fmt.Fprintf(flags.Output(), "Usage: nuntius [flags]\n\n")
-		fmt.Fprintf(flags.Output(), "Nuntius watches a Git repo for changes and generates AI-powered commit messages.\n\n")
-		fmt.Fprintf(flags.Output(), "Flags:\n")
+		_, _ = fmt.Fprintf(flags.Output(), "Usage: nuntius [flags]\n\n")
+		_, _ = fmt.Fprintf(flags.Output(), "Nuntius watches a Git repo for changes and generates AI-powered commit messages.\n\n")
+		_, _ = fmt.Fprintf(flags.Output(), "Flags:\n")
 		flags.PrintDefaults()
 	}
 
-	return flags, showVersion, provider, model, autoCommit, autoPush
+	return flags, showVersion, provider, model, autoCommit, autoPush, noUpdateCheck
 }
 
 // isGitRepo checks if the current directory is inside a Git repository.

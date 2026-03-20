@@ -55,3 +55,12 @@ type ErrorMsg struct {
 	// Err is the underlying error.
 	Err error
 }
+
+// UpdateAvailableMsg is sent when a newer version of nuntius is available.
+// Source: Version check → Consumed by: AppModel (displayed as a persistent notice)
+type UpdateAvailableMsg struct {
+	// Current is the running version.
+	Current string
+	// Latest is the newest version available.
+	Latest string
+}

@@ -36,6 +36,12 @@ type AppModel struct {
 	provider    ai.Provider
 	conventions string
 
+	// Version check fields.
+	version       string
+	buildDate     string
+	noUpdateCheck bool
+	updateNotice  string
+
 	// Status line with auto-clear.
 	statusEntry *statusEntry
 }
@@ -71,6 +77,19 @@ func (m AppModel) WithConventions(c string) AppModel {
 	return m
 }
 
+// WithVersion sets the current build version and date for update checking.
+func (m AppModel) WithVersion(v, buildDate string) AppModel {
+	m.version = v
+	m.buildDate = buildDate
+	return m
+}
+
+// WithNoUpdateCheck disables the startup version check.
+func (m AppModel) WithNoUpdateCheck() AppModel {
+	m.noUpdateCheck = true
+	return m
+}
+
 // Init returns the initial commands for the application.
 func (m AppModel) Init() tea.Cmd {
 	cmds := []tea.Cmd{
@@ -85,6 +104,11 @@ func (m AppModel) Init() tea.Cmd {
 	// Start listening for watcher events if a watcher is wired in.
 	if m.watcher != nil {
 		cmds = append(cmds, waitForFileChange(m.watcher))
+	}
+
+	// Non-blocking version check.
+	if !m.noUpdateCheck && m.version != "" && m.version != "dev" {
+		cmds = append(cmds, checkVersionCmd(m.version, m.buildDate))
 	}
 
 	return tea.Batch(cmds...)
@@ -293,6 +317,9 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.actionbar.EnablePush(msg.count)
 		}
 
+	case events.UpdateAvailableMsg:
+		m.updateNotice = fmt.Sprintf("Update available: %s → %s", msg.Current, msg.Latest)
+
 	default:
 		// Forward spinner ticks and other messages.
 		var vcmd, acmd tea.Cmd
@@ -327,6 +354,21 @@ func (m AppModel) View() string {
 	if m.config.Behavior.AutoCommit || m.config.Behavior.AutoPush {
 		abContent += "  " + StatusMuted.Render(m.autoModeBadges())
 	}
+	if m.version != "" {
+		versionTag := StatusMuted.Render(m.version)
+		abWidth := visibleWidth(abContent)
+		vTagWidth := visibleWidth(versionTag)
+		padding := m.width - abWidth - vTagWidth
+		if padding > 0 {
+			abContent += strings.Repeat(" ", padding) + versionTag
+		}
+	}
+
+	// Update notice.
+	updateLine := ""
+	if m.updateNotice != "" {
+		updateLine = StatusInfo.Render(m.updateNotice)
+	}
 
 	// Help overlay.
 	helpView := ""
@@ -340,6 +382,9 @@ func (m AppModel) View() string {
 		parts = append(parts, statusLine)
 	}
 	parts = append(parts, abContent)
+	if updateLine != "" {
+		parts = append(parts, updateLine)
+	}
 	if helpView != "" {
 		parts = append(parts, helpView)
 	}
@@ -445,4 +490,23 @@ func (m AppModel) Ready() bool {
 // ShowHelp returns whether the help overlay is visible.
 func (m AppModel) ShowHelp() bool {
 	return m.showHelp
+}
+
+// UpdateNotice returns the version update notice, if any.
+func (m AppModel) UpdateNotice() string {
+	return m.updateNotice
+}
+
+// checkVersionCmd returns a Cmd that checks for a newer version in the background.
+func checkVersionCmd(currentVersion, buildDate string) tea.Cmd {
+	return func() tea.Msg {
+		result := config.CheckForUpdate(currentVersion, buildDate)
+		if result != nil && result.UpdateAvailable {
+			return events.UpdateAvailableMsg{
+				Current: result.Current,
+				Latest:  result.LatestTag,
+			}
+		}
+		return nil
+	}
 }

@@ -24,16 +24,16 @@ func TestRunHelp(t *testing.T) {
 
 func TestHelpOutputUsesDoubleDashFlags(t *testing.T) {
 	var stderr bytes.Buffer
-	flags, _, _, _, _, _ := newFlagSet(&stderr)
+	flags, _, _, _, _, _, _ := newFlagSet(&stderr)
 	flags.Usage()
 
 	output := stderr.String()
-	for _, want := range []string{"--version", "--provider", "--model", "--auto-commit", "--auto-push"} {
+	for _, want := range []string{"--version", "--provider", "--model", "--auto-commit", "--auto-push", "--no-update-check"} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("expected help output to contain %q, got %q", want, output)
 		}
 	}
-	for _, unwanted := range []string{"  -version", "  -provider", "  -model", "  -auto-commit", "  -auto-push"} {
+	for _, unwanted := range []string{"  -version", "  -provider", "  -model", "  -auto-commit", "  -auto-push", "  -no-update-check"} {
 		if strings.Contains(output, unwanted) {
 			t.Fatalf("expected help output not to contain %q, got %q", unwanted, output)
 		}
