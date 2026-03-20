@@ -365,7 +365,7 @@ func (m AppModel) View() string {
 	// Update notice.
 	updateLine := ""
 	if m.updateNotice != "" {
-		updateLine = StatusInfo.Render(m.updateNotice)
+		updateLine = StatusInfo.PaddingLeft(2).Render(m.updateNotice)
 	}
 
 	// Help overlay.

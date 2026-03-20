@@ -106,9 +106,11 @@ var (
 // Title and header styles.
 var (
 	// Title is the style for section titles.
+	// PaddingLeft(2) aligns the icon/title with the indented content below it.
 	Title = lipgloss.NewStyle().
 		Foreground(accent).
-		Bold(true)
+		Bold(true).
+		PaddingLeft(2)
 
 	// HelpStyle styles the help text at the bottom.
 	HelpStyle = lipgloss.NewStyle().

@@ -31,11 +31,11 @@ type statusEntry struct {
 func renderStatus(s statusEntry) string {
 	switch s.level {
 	case statusSuccess:
-		return StatusOK.Render(s.message)
+		return StatusOK.PaddingLeft(2).Render(s.message)
 	case statusErr:
-		return StatusError.Render(s.message)
+		return StatusError.PaddingLeft(2).Render(s.message)
 	default:
-		return StatusInfo.Render(s.message)
+		return StatusInfo.PaddingLeft(2).Render(s.message)
 	}
 }
 

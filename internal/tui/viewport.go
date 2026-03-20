@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/crazzyghost/nuntius/internal/events"
 )
@@ -87,6 +88,7 @@ func (m ViewportModel) Update(msg tea.Msg) (ViewportModel, tea.Cmd) {
 		m.loading = true
 		m.loadingText = "Generating commit message..."
 		m.updateContent()
+		cmds = append(cmds, m.spinner.Tick) // restart tick chain — it stops when loading is false
 
 	case spinner.TickMsg:
 		if m.loading {
@@ -117,7 +119,7 @@ func (m ViewportModel) View() string {
 	content := m.viewport.View()
 	footer := m.footerView()
 
-	return fmt.Sprintf("%s\n%s\n%s", header, content, footer)
+	return fmt.Sprintf("%s\n\n%s\n%s", header, content, footer)
 }
 
 // headerView renders the panel title.
@@ -137,7 +139,7 @@ func (m ViewportModel) headerView() string {
 // footerView shows scroll position.
 func (m ViewportModel) footerView() string {
 	percent := m.viewport.ScrollPercent() * 100
-	return StatusMuted.Render(fmt.Sprintf(" %3.0f%%", percent))
+	return StatusMuted.Render(fmt.Sprintf("  %3.0f%%", percent))
 }
 
 // updateContent rebuilds the viewport content based on current mode.
@@ -177,7 +179,7 @@ func (m *ViewportModel) renderFileList() string {
 	}
 
 	if len(staged) > 0 {
-		b.WriteString(StagedFile.Render("Staged Changes"))
+		b.WriteString(StagedFile.Render("  Staged Changes"))
 		b.WriteString("\n")
 		for _, f := range staged {
 			icon := StatusIcon(f.Status)
@@ -191,7 +193,7 @@ func (m *ViewportModel) renderFileList() string {
 		if len(staged) > 0 {
 			b.WriteString("\n")
 		}
-		b.WriteString(UnstagedFile.Render("Unstaged Changes"))
+		b.WriteString(UnstagedFile.Render("  Unstaged Changes"))
 		b.WriteString("\n")
 		for _, f := range unstaged {
 			icon := StatusIcon(f.Status)
@@ -213,7 +215,7 @@ func (m *ViewportModel) renderMessage() string {
 	if m.message == "" {
 		return StatusMuted.Render("  No message generated yet.")
 	}
-	return m.message
+	return lipgloss.NewStyle().PaddingLeft(2).Render(m.message)
 }
 
 // renderLoading renders the loading state.
@@ -222,7 +224,7 @@ func (m *ViewportModel) renderLoading() string {
 	if text == "" {
 		text = "Loading..."
 	}
-	return fmt.Sprintf("\n\n  %s %s", m.spinner.View(), text)
+	return fmt.Sprintf("  %s %s", m.spinner.View(), text)
 }
 
 // Mode returns the current display mode.
