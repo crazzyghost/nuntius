@@ -12,6 +12,7 @@ import (
 	"github.com/crazzyghost/nuntius/internal/ai"
 	"github.com/crazzyghost/nuntius/internal/cli"
 	"github.com/crazzyghost/nuntius/internal/config"
+	"github.com/crazzyghost/nuntius/internal/engine"
 	"github.com/crazzyghost/nuntius/internal/git"
 	"github.com/crazzyghost/nuntius/internal/tui"
 )
@@ -178,6 +179,12 @@ func run(args []string) int {
 		return 1
 	}
 
+	// --diff-from is only meaningful with -g; catch this before the TUI path.
+	if flags.Changed("diff-from") && !flags.Changed("generate") {
+		fmt.Fprintf(os.Stderr, "Error: --diff-from requires --generate (-g)\n")
+		return 1
+	}
+
 	if !isHeadless {
 		// TUI path — delegate to the full setup function.
 		return launchTUI(args)
@@ -220,11 +227,29 @@ func run(args []string) int {
 	generate, _ := flags.GetBool("generate")
 	autoCommit, _ := flags.GetBool("auto-commit")
 	autoPush, _ := flags.GetBool("auto-push")
+	diffFrom, _ := flags.GetString("diff-from")
+
+	diffSrc, err := parseDiffFrom(diffFrom)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		return 1
+	}
 
 	actions := cli.Actions{
-		Generate: generate,
-		Commit:   autoCommit,
-		Push:     autoPush,
+		Generate:   generate,
+		Commit:     autoCommit,
+		Push:       autoPush,
+		DiffSource: diffSrc,
+	}
+
+	// Read stdin when --diff-from=stdin.
+	if diffSrc == engine.DiffSourceExternal {
+		diff, readErr := readStdinDiff(os.Stdin)
+		if readErr != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", readErr)
+			return 1
+		}
+		actions.ExternalDiff = diff
 	}
 
 	// Validate flag combinations before doing any work.
@@ -325,6 +350,7 @@ func newFlagSet(output io.Writer) *pflag.FlagSet {
 	flags.BoolP("auto-push", "p", false, "Push after commit (sets upstream for new branches)")
 
 	flags.Bool("force-push", false, "Use --force-with-lease when pushing (no short alias)")
+	flags.String("diff-from", "auto", "Source of diff for message generation (auto, staged, stdin)")
 	flags.BoolP("json", "j", false, "Emit all output as structured JSON to stdout (requires -g, -c, or -p)")
 	flags.Bool("no-update-check", false, "Disable startup version check")
 
@@ -340,6 +366,8 @@ func newFlagSet(output io.Writer) *pflag.FlagSet {
 		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -gcp         Generate, commit, and push\n")
 		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -p           Push existing unpushed commits\n")
 		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -gcp --json  Generate, commit, push, and output JSON\n")
+		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -g --diff-from=staged  Generate from staged changes only\n")
+		_, _ = fmt.Fprintf(flags.Output(), "  git diff HEAD~3..HEAD | nuntius -g --diff-from=stdin  Pipe a diff\n")
 		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -g | git commit -F -   Pipe message to git commit\n")
 	}
 
@@ -350,4 +378,57 @@ func newFlagSet(output io.Writer) *pflag.FlagSet {
 func isGitRepo() bool {
 	_, err := os.Stat(".git")
 	return err == nil
+}
+
+// parseDiffFrom maps the --diff-from flag value to an engine.DiffSource.
+// "auto" → DiffSourceAuto, "staged" → DiffSourceStaged, "stdin" → DiffSourceExternal.
+func parseDiffFrom(s string) (engine.DiffSource, error) {
+	switch s {
+	case "auto":
+		return engine.DiffSourceAuto, nil
+	case "staged":
+		return engine.DiffSourceStaged, nil
+	case "stdin":
+		return engine.DiffSourceExternal, nil
+	default:
+		return 0, fmt.Errorf("--diff-from must be one of: auto, staged, stdin")
+	}
+}
+
+// readStdinDiff reads a diff from r, validates that it is not a TTY, and
+// truncates to git.DefaultMaxDiffBytes if necessary.
+func readStdinDiff(r io.Reader) (string, error) {
+	if isTerminal(r) {
+		return "", fmt.Errorf("--diff-from=stdin requires piped input")
+	}
+	raw, err := io.ReadAll(io.LimitReader(r, int64(git.DefaultMaxDiffBytes)+1))
+	if err != nil {
+		return "", fmt.Errorf("reading stdin: %w", err)
+	}
+	if len(raw) == 0 {
+		return "", fmt.Errorf("no diff provided on stdin")
+	}
+	if len(raw) > git.DefaultMaxDiffBytes {
+		cutoff := git.DefaultMaxDiffBytes - len(git.TruncationMarker)
+		if cutoff < 0 {
+			cutoff = 0
+		}
+		raw = append(raw[:cutoff], []byte(git.TruncationMarker)...)
+	}
+	return string(raw), nil
+}
+
+// isTerminal reports whether r is connected to a terminal (TTY).
+// Non-file readers (e.g. bytes.Buffer in tests) always return false.
+func isTerminal(r io.Reader) bool {
+	f, ok := r.(*os.File)
+	if !ok {
+		return false
+	}
+	fi, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	// On Unix, a terminal is a character device (ModeDevice | ModeCharDevice).
+	return fi.Mode()&(os.ModeDevice|os.ModeCharDevice) == (os.ModeDevice | os.ModeCharDevice)
 }

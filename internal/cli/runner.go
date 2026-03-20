@@ -16,6 +16,12 @@ type Actions struct {
 	Generate bool
 	Commit   bool
 	Push     bool
+	// DiffSource controls where the diff for generation comes from.
+	// Defaults to engine.DiffSourceAuto (staged + unstaged).
+	DiffSource engine.DiffSource
+	// ExternalDiff holds a pre-read diff when DiffSource is DiffSourceExternal.
+	// Populated by the caller (e.g. from stdin) before invoking Run.
+	ExternalDiff string
 }
 
 // GitOps abstracts git operations for testability.
@@ -53,7 +59,7 @@ func run(ctx context.Context, cfg config.Config, provider ai.Provider, actions A
 		return doPush(ctx, gitOps, cfg.Behavior.ForcePush)
 	}
 
-	r := Result{DiffSource: "auto"}
+	r := Result{DiffSource: diffSourceLabel(actions.DiffSource)}
 
 	if !actions.Generate {
 		// Invalid combination — caller should validate before calling Run.
@@ -71,7 +77,8 @@ func run(ctx context.Context, cfg config.Config, provider ai.Provider, actions A
 	defer cancel()
 
 	msg, files, err := engine.Generate(genCtx, cfg, provider, engine.GenerateInput{
-		Source: engine.DiffSourceAuto,
+		Source:       actions.DiffSource,
+		ExternalDiff: actions.ExternalDiff,
 	})
 	if err != nil {
 		r.Error = err.Error()
@@ -157,4 +164,17 @@ func executePush(_ context.Context, gitOps GitOps, forceWithLease bool) (remote,
 		return "", "", false, err
 	}
 	return result.Remote, result.Branch, !hasUpstream, nil
+}
+
+// diffSourceLabel converts an engine.DiffSource to the string written into
+// Result.DiffSource, matching the CLI flag value (auto, staged, stdin).
+func diffSourceLabel(src engine.DiffSource) string {
+	switch src {
+	case engine.DiffSourceStaged:
+		return "staged"
+	case engine.DiffSourceExternal:
+		return "stdin"
+	default:
+		return "auto"
+	}
 }

@@ -72,16 +72,23 @@ func runHeadless(ctx context.Context, p ai.Provider, gitOps *mockGitOps, cfg con
 
 	if actions.Generate {
 		var err error
+		src := actions.DiffSource
+		extDiff := actions.ExternalDiff
+		// Default to external with a stub diff so tests don't need a real git repo.
+		if src == engine.DiffSourceAuto || src == engine.DiffSourceStaged {
+			src = engine.DiffSourceExternal
+			extDiff = "+++ b/foo.go\n--- a/foo.go\n+changed\n"
+		}
 		msg, files, err = engine.Generate(ctx, cfg, p, engine.GenerateInput{
-			Source:       engine.DiffSourceExternal,
-			ExternalDiff: "+++ b/foo.go\n--- a/foo.go\n+changed\n",
+			Source:       src,
+			ExternalDiff: extDiff,
 		})
 		if err != nil {
 			return cli.Result{OK: false, Error: err.Error(), Stage: "generate"}
 		}
 	}
 
-	res := cli.Result{OK: false, DiffSource: "auto", Message: msg, Files: files}
+	res := cli.Result{OK: false, DiffSource: diffSourceLabelForTest(actions.DiffSource), Message: msg, Files: files}
 
 	if !actions.Commit {
 		res.OK = true
@@ -127,6 +134,18 @@ func runHeadless(ctx context.Context, p ai.Provider, gitOps *mockGitOps, cfg con
 	res.SetUpstream = !hasUpstream
 	res.OK = true
 	return res
+}
+
+// diffSourceLabelForTest mirrors cli internal diffSourceLabel for test assertions.
+func diffSourceLabelForTest(src engine.DiffSource) string {
+	switch src {
+	case engine.DiffSourceStaged:
+		return "staged"
+	case engine.DiffSourceExternal:
+		return "stdin"
+	default:
+		return "auto"
+	}
 }
 
 func TestResult_ExitCode(t *testing.T) {
@@ -363,5 +382,57 @@ func TestRunHeadless_ContextTimeout(t *testing.T) {
 	}
 	if res.Stage != "generate" {
 		t.Errorf("expected stage=generate on timeout, got %q", res.Stage)
+	}
+}
+
+func TestResult_DiffSourceLabel(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		actions cli.Actions
+		want    string
+	}{
+		{"default (auto)", cli.Actions{Generate: true}, "auto"},
+		{"staged", cli.Actions{Generate: true, DiffSource: engine.DiffSourceStaged}, "staged"},
+		{"external/stdin", cli.Actions{Generate: true, DiffSource: engine.DiffSourceExternal, ExternalDiff: "+++ b/f.go\n+x\n"}, "stdin"},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			p := &mockProvider{msg: "feat: test"}
+			gitOps := &mockGitOps{}
+			cfg := config.DefaultConfig()
+			res := runHeadless(context.Background(), p, gitOps, cfg, tc.actions)
+			if !res.OK {
+				t.Fatalf("expected OK, got error: %v", res.Error)
+			}
+			if res.DiffSource != tc.want {
+				t.Errorf("DiffSource = %q, want %q", res.DiffSource, tc.want)
+			}
+		})
+	}
+}
+
+func TestRunHeadless_ExternalDiff_EmptyErrors(t *testing.T) {
+	t.Parallel()
+	p := &mockProvider{msg: "feat: test"}
+	gitOps := &mockGitOps{}
+	cfg := config.DefaultConfig()
+	// ExternalDiff is empty — engine should return "no diff provided"
+	actions := cli.Actions{
+		Generate:     true,
+		DiffSource:   engine.DiffSourceExternal,
+		ExternalDiff: "",
+	}
+
+	res := runHeadless(context.Background(), p, gitOps, cfg, actions)
+
+	if res.OK {
+		t.Error("expected failure when ExternalDiff is empty")
+	}
+	if res.Stage != "generate" {
+		t.Errorf("expected stage=generate, got %q", res.Stage)
 	}
 }

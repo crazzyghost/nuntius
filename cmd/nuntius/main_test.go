@@ -284,3 +284,114 @@ func TestNewFlagSet_JsonFlag(t *testing.T) {
 		t.Errorf("expected --json shorthand to be 'j', got %q", f.Shorthand)
 	}
 }
+
+func TestParseDiffFrom(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		input   string
+		wantSrc int // 0=auto, 1=staged, 2=external
+		wantErr bool
+	}{
+		{"auto", 0, false},
+		{"staged", 1, false},
+		{"stdin", 2, false},
+		{"invalid", 0, true},
+		{"", 0, true},
+		{"AUTO", 0, true},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+			_, err := parseDiffFrom(tc.input)
+			if tc.wantErr && err == nil {
+				t.Errorf("parseDiffFrom(%q): expected error, got nil", tc.input)
+			}
+			if !tc.wantErr && err != nil {
+				t.Errorf("parseDiffFrom(%q): unexpected error: %v", tc.input, err)
+			}
+		})
+	}
+}
+
+func TestReadStdinDiff_Empty(t *testing.T) {
+	t.Parallel()
+	_, err := readStdinDiff(strings.NewReader(""))
+	if err == nil {
+		t.Error("expected error for empty stdin")
+	}
+	if !strings.Contains(err.Error(), "no diff provided") {
+		t.Errorf("unexpected error message: %v", err)
+	}
+}
+
+func TestReadStdinDiff_NonEmpty(t *testing.T) {
+	t.Parallel()
+	diff := "diff --git a/foo.go b/foo.go\n+changed\n"
+	got, err := readStdinDiff(strings.NewReader(diff))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != diff {
+		t.Errorf("got %q, want %q", got, diff)
+	}
+}
+
+func TestReadStdinDiff_Truncated(t *testing.T) {
+	t.Parallel()
+	// Feed more bytes than DefaultMaxDiffBytes to trigger truncation.
+	big := strings.Repeat("x", 33000)
+	got, err := readStdinDiff(strings.NewReader(big))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) > 32768 {
+		t.Errorf("expected truncated output <= 32768 bytes, got %d", len(got))
+	}
+	if !strings.HasSuffix(got, "\n... (truncated)") {
+		t.Errorf("expected truncation marker, got suffix: %q", got[len(got)-20:])
+	}
+}
+
+func TestDiffFromRequiresGenerate(t *testing.T) {
+	dir := t.TempDir()
+	origDir, _ := os.Getwd()
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	mkGitDir(t, dir)
+
+	code := run([]string{"--diff-from=staged"})
+	if code != 1 {
+		t.Errorf("expected exit 1 when --diff-from used without -g, got %d", code)
+	}
+}
+
+func TestDiffFromInvalidValue(t *testing.T) {
+	dir := t.TempDir()
+	origDir, _ := os.Getwd()
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	mkGitDir(t, dir)
+
+	code := run([]string{"-g", "--diff-from=invalid"})
+	if code != 1 {
+		t.Errorf("expected exit 1 for invalid --diff-from value, got %d", code)
+	}
+}
+
+func TestNewFlagSet_DiffFromFlag(t *testing.T) {
+	var buf bytes.Buffer
+	flags := newFlagSet(&buf)
+
+	f := flags.Lookup("diff-from")
+	if f == nil {
+		t.Fatal("expected --diff-from flag to be registered")
+	}
+	if f.DefValue != "auto" {
+		t.Errorf("expected default value 'auto', got %q", f.DefValue)
+	}
+}

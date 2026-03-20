@@ -5,7 +5,6 @@ package engine
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/crazzyghost/nuntius/internal/ai"
 	"github.com/crazzyghost/nuntius/internal/config"
@@ -76,7 +75,7 @@ func collectDiff(input GenerateInput) (string, []string, error) {
 		if input.ExternalDiff == "" {
 			return "", nil, fmt.Errorf("no diff provided")
 		}
-		return input.ExternalDiff, ParseDiffFileHeaders(input.ExternalDiff), nil
+		return input.ExternalDiff, git.ParseDiffFileHeaders(input.ExternalDiff), nil
 
 	case DiffSourceStaged:
 		diff, err := git.StagedDiff(git.DefaultMaxDiffBytes)
@@ -112,37 +111,4 @@ func collectDiff(input GenerateInput) (string, []string, error) {
 
 		return diff, files, nil
 	}
-}
-
-// ParseDiffFileHeaders extracts file paths from diff headers of the form:
-//
-//	--- a/path/to/file
-//	+++ b/path/to/file
-//
-// It deduplicates the results and strips the "a/" / "b/" prefix.
-func ParseDiffFileHeaders(diff string) []string {
-	seen := make(map[string]struct{})
-	var files []string
-
-	for _, line := range strings.Split(diff, "\n") {
-		var raw string
-		switch {
-		case strings.HasPrefix(line, "+++ b/"):
-			raw = strings.TrimPrefix(line, "+++ b/")
-		case strings.HasPrefix(line, "--- a/"):
-			raw = strings.TrimPrefix(line, "--- a/")
-		default:
-			continue
-		}
-		raw = strings.TrimSpace(raw)
-		if raw == "" || raw == "/dev/null" {
-			continue
-		}
-		if _, ok := seen[raw]; !ok {
-			seen[raw] = struct{}{}
-			files = append(files, raw)
-		}
-	}
-
-	return files
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/crazzyghost/nuntius/internal/ai"
 	"github.com/crazzyghost/nuntius/internal/config"
 	"github.com/crazzyghost/nuntius/internal/engine"
+	"github.com/crazzyghost/nuntius/internal/git"
 )
 
 // mockProvider is a test double for ai.Provider.
@@ -137,7 +138,7 @@ func TestParseDiffFileHeaders(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got := engine.ParseDiffFileHeaders(tc.diff)
+			got := git.ParseDiffFileHeaders(tc.diff)
 			if len(got) != len(tc.want) {
 				t.Fatalf("got %v, want %v", got, tc.want)
 			}
