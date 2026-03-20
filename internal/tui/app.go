@@ -143,10 +143,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if m.actionbar.GenerateEnabled() && m.viewport.HasChanges() {
 						cmd := m.triggerGenerate()
 						cmds = append(cmds, cmd...)
-					} else if !m.viewport.HasChanges() {
-						m.setStatus("No changes to generate a message for.", statusErr)
-						cmds = append(cmds, scheduleStatusClear())
 					}
+					// Disabled button: silently ignore clicks.
 				case 1: // Commit
 					if m.actionbar.CommitEnabled() && m.viewport.HasMessage() {
 						cmd := m.triggerCommit()
@@ -182,10 +180,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.actionbar.GenerateEnabled() && m.viewport.HasChanges() {
 				cmd := m.triggerGenerate()
 				cmds = append(cmds, cmd...)
-			} else if !m.viewport.HasChanges() {
-				m.setStatus("No changes to generate a message for.", statusErr)
-				cmds = append(cmds, scheduleStatusClear())
 			}
+			// Disabled button: silently ignore key press.
 			return m, tea.Batch(cmds...)
 
 		case key.Matches(msg, m.keys.Commit):
@@ -210,7 +206,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			action := m.actionbar.FocusedAction()
 			switch action {
 			case "g":
-				if m.viewport.HasChanges() {
+				if m.actionbar.GenerateEnabled() && m.viewport.HasChanges() {
 					cmd := m.triggerGenerate()
 					cmds = append(cmds, cmd...)
 				}

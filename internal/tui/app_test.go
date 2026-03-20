@@ -189,12 +189,12 @@ func TestAppGenerateWithNoChanges(t *testing.T) {
 	model, _ := app.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m := model.(AppModel)
 
-	// Press 'g' with no changes at all.
+	// Press 'g' while Generate button is disabled (no changes): must be silently ignored.
 	model, _ = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'g'}}))
 	m = model.(AppModel)
 
-	if m.statusEntry == nil {
-		t.Error("should show error about no changes")
+	if m.statusEntry != nil {
+		t.Error("pressing 'g' on a disabled Generate button should be silently ignored, not show a status error")
 	}
 }
 
@@ -203,7 +203,7 @@ func TestAppMouseClickGenerate(t *testing.T) {
 	model, _ := app.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m := model.(AppModel)
 
-	// Click on the Generate button in the bottom action bar region.
+	// Click on the Generate button while it is disabled: must be silently ignored.
 	click := tea.MouseMsg{
 		X:      2,
 		Y:      23, // bottom row of a 24-high terminal (0-indexed)
@@ -213,8 +213,8 @@ func TestAppMouseClickGenerate(t *testing.T) {
 	model, _ = m.Update(click)
 	m = model.(AppModel)
 
-	if m.statusEntry == nil {
-		t.Error("mouse click on Generate with no changes should show status error")
+	if m.statusEntry != nil {
+		t.Error("clicking a disabled Generate button should be silently ignored, not show a status error")
 	}
 }
 
