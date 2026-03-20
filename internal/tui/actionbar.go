@@ -105,6 +105,10 @@ func (m ActionBarModel) Update(msg tea.Msg) (ActionBarModel, tea.Cmd) {
 		m.buttons[0].state = btnLoading
 		cmds = append(cmds, m.buttons[0].spinner.Tick)
 
+	case events.PushRequestedMsg:
+		m.buttons[2].state = btnLoading
+		cmds = append(cmds, m.buttons[2].spinner.Tick)
+
 	case events.MessageReadyMsg:
 		m.buttons[0].state = btnNormal
 		// Enable commit button — new message is ready.
@@ -365,11 +369,6 @@ func (m *ActionBarModel) EnablePush(count int) {
 		m.buttons[2].state = btnNormal
 		m.committed = true
 	}
-}
-
-// SetPushLoading puts the push button into loading state.
-func (m *ActionBarModel) SetPushLoading() {
-	m.buttons[2].state = btnLoading
 }
 
 // UnpushedCount returns the current unpushed commit count.

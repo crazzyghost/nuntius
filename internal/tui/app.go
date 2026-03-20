@@ -298,6 +298,12 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		cmds = append(cmds, scheduleStatusClear())
 
+	case events.PushRequestedMsg:
+		var vcmd, acmd tea.Cmd
+		m.viewport, vcmd = m.viewport.Update(msg)
+		m.actionbar, acmd = m.actionbar.Update(msg)
+		cmds = append(cmds, vcmd, acmd)
+
 	case events.ErrorMsg:
 		var cmd tea.Cmd
 		m.actionbar, cmd = m.actionbar.Update(msg)
@@ -419,14 +425,15 @@ func (m *AppModel) triggerCommit() []tea.Cmd {
 
 // triggerPush dispatches the push flow.
 func (m *AppModel) triggerPush() []tea.Cmd {
-	m.actionbar.SetPushLoading()
 	count := m.actionbar.UnpushedCount()
+	var loadingText string
 	if count > 0 {
-		m.viewport.SetLoading(fmt.Sprintf("Pushing %d commit(s)...", count))
+		loadingText = fmt.Sprintf("Pushing %d commit(s)...", count)
 	} else {
-		m.viewport.SetLoading("Pushing...")
+		loadingText = "Pushing..."
 	}
-	return []tea.Cmd{pushCmd(m.config.Behavior.ForcePush)}
+	reqCmd := func() tea.Msg { return events.PushRequestedMsg{LoadingText: loadingText} }
+	return []tea.Cmd{reqCmd, pushCmd(m.config.Behavior.ForcePush)}
 }
 
 // setStatus sets the transient status message.

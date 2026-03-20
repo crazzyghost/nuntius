@@ -23,6 +23,15 @@ type FilesChangedMsg struct {
 // Source: Action bar (Panel B) → Consumed by: AI gateway
 type GenerateRequestedMsg struct{}
 
+// PushRequestedMsg is sent when the user initiates a git push.
+// It carries the loading text so both the viewport and action bar can show
+// consistent in-progress feedback while restarting their spinner tick chains.
+// Source: App → Consumed by: Viewport, ActionBar
+type PushRequestedMsg struct {
+	// LoadingText is the message to display while pushing.
+	LoadingText string
+}
+
 // MessageReadyMsg is sent when the AI provider returns a generated commit message.
 // Source: AI gateway → Consumed by: Viewport (Panel A)
 type MessageReadyMsg struct {
