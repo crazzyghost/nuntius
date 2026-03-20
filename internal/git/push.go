@@ -31,6 +31,7 @@ type PushResult struct {
 // Returns an empty string on error.
 func CurrentBranch() string {
 	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+	applyEnv(cmd)
 	out, err := cmd.Output()
 	if err != nil {
 		return ""
@@ -46,6 +47,7 @@ func HasUpstream() (bool, error) {
 		return false, nil
 	}
 	cmd := exec.Command("git", "config", fmt.Sprintf("branch.%s.remote", branch))
+	applyEnv(cmd)
 	out, err := cmd.Output()
 	if err != nil {
 		// Exit code 1 means the config key doesn't exist — not a fatal error.
@@ -62,6 +64,7 @@ func Push(opts PushOptions) (PushResult, error) {
 	args := BuildPushArgs(opts)
 
 	cmd := exec.Command("git", args...)
+	applyEnv(cmd)
 	out, err := cmd.CombinedOutput()
 	output := string(out)
 
@@ -98,6 +101,7 @@ func parseCurrentRemoteBranch() (remote, branch string) {
 
 	// Get remote for the current branch
 	remoteCmd := exec.Command("git", "config", fmt.Sprintf("branch.%s.remote", branch))
+	applyEnv(remoteCmd)
 	remoteOut, err := remoteCmd.Output()
 	if err != nil {
 		return "origin", branch
@@ -137,9 +141,11 @@ func UnpushedCount() int {
 
 	// Check if upstream ref exists.
 	checkCmd := exec.Command("git", "rev-parse", "--verify", upstream)
+	applyEnv(checkCmd)
 	if err := checkCmd.Run(); err != nil {
 		// No upstream — count all commits on this branch.
 		logCmd := exec.Command("git", "rev-list", "--count", "HEAD")
+		applyEnv(logCmd)
 		out, err := logCmd.Output()
 		if err != nil {
 			return 0
@@ -149,6 +155,7 @@ func UnpushedCount() int {
 	}
 
 	cmd := exec.Command("git", "rev-list", "--count", upstream+"..HEAD")
+	applyEnv(cmd)
 	out, err := cmd.Output()
 	if err != nil {
 		return 0

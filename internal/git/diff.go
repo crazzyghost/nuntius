@@ -37,6 +37,7 @@ func diffWith(extraArgs []string, maxBytes int) (string, error) {
 
 	args := append([]string{"diff", "--unified=3"}, extraArgs...)
 	cmd := exec.Command("git", args...)
+	applyEnv(cmd)
 	out, err := cmd.Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
@@ -57,6 +58,7 @@ func diffWith(extraArgs []string, maxBytes int) (string, error) {
 // StageAll stages all changes (tracked and untracked) via git add -A.
 func StageAll() error {
 	cmd := exec.Command("git", "add", "-A")
+	applyEnv(cmd)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("git add failed: %s", strings.TrimSpace(string(out)))

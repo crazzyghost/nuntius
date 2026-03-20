@@ -171,6 +171,13 @@ func run(args []string) int {
 	// so that config.toml auto_commit=true does not trigger headless mode.
 	isHeadless := flags.Changed("generate") || flags.Changed("auto-commit") || flags.Changed("auto-push")
 
+	jsonMode, _ := flags.GetBool("json")
+
+	if jsonMode && !isHeadless {
+		fmt.Fprintf(os.Stderr, "Error: --json requires at least one of -g, -c, -p\n")
+		return 1
+	}
+
 	if !isHeadless {
 		// TUI path — delegate to the full setup function.
 		return launchTUI(args)
@@ -240,30 +247,16 @@ func run(args []string) int {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	git.SetNonInteractive(true)
+
 	result := cli.Run(ctx, cfg, aiProvider, actions)
 
-	// Write commit message to stdout (clean for piping).
-	if result.Message != "" {
-		if _, err := fmt.Fprint(os.Stdout, result.Message); err != nil {
-			fmt.Fprintf(os.Stderr, "error writing message: %v\n", err)
+	if jsonMode {
+		if err := cli.WriteJSON(os.Stdout, result); err != nil {
+			fmt.Fprintf(os.Stderr, "error writing JSON: %v\n", err)
 		}
-	}
-	if result.Committed {
-		fmt.Fprintf(os.Stderr, "committed %s\n", result.CommitHash)
-	}
-	if result.Pushed {
-		remote := result.PushRemote
-		if remote == "" {
-			remote = "origin"
-		}
-		if result.PushBranch != "" {
-			fmt.Fprintf(os.Stderr, "pushed to %s/%s\n", remote, result.PushBranch)
-		} else {
-			fmt.Fprintf(os.Stderr, "pushed to %s\n", remote)
-		}
-	}
-	if !result.OK {
-		fmt.Fprintf(os.Stderr, "Error: %s\n", result.Error)
+	} else {
+		cli.WritePlain(os.Stdout, os.Stderr, result)
 	}
 	return result.ExitCode()
 }
@@ -332,6 +325,7 @@ func newFlagSet(output io.Writer) *pflag.FlagSet {
 	flags.BoolP("auto-push", "p", false, "Push after commit (sets upstream for new branches)")
 
 	flags.Bool("force-push", false, "Use --force-with-lease when pushing (no short alias)")
+	flags.BoolP("json", "j", false, "Emit all output as structured JSON to stdout (requires -g, -c, or -p)")
 	flags.Bool("no-update-check", false, "Disable startup version check")
 
 	flags.Usage = func() {
@@ -345,6 +339,7 @@ func newFlagSet(output io.Writer) *pflag.FlagSet {
 		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -gc          Generate and commit\n")
 		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -gcp         Generate, commit, and push\n")
 		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -p           Push existing unpushed commits\n")
+		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -gcp --json  Generate, commit, push, and output JSON\n")
 		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -g | git commit -F -   Pipe message to git commit\n")
 	}
 

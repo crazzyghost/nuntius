@@ -13,6 +13,7 @@ import (
 // Returns an error if the current directory is not inside a git repository.
 func Status() ([]events.FileStatus, error) {
 	cmd := exec.Command("git", "status", "--porcelain=v2")
+	applyEnv(cmd)
 	out, err := cmd.Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {

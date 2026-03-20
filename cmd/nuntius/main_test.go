@@ -257,3 +257,30 @@ func TestHeadlessModeNotTriggeredByConfig(t *testing.T) {
 	result.cancel()
 	result.watcher.Stop()
 }
+
+func TestRunJsonRequiresActionFlag(t *testing.T) {
+	code := run([]string{"--json"})
+	if code != 1 {
+		t.Errorf("expected exit code 1 for --json without action flags, got %d", code)
+	}
+}
+
+func TestRunJsonShortFlagRequiresActionFlag(t *testing.T) {
+	code := run([]string{"-j"})
+	if code != 1 {
+		t.Errorf("expected exit code 1 for -j without action flags, got %d", code)
+	}
+}
+
+func TestNewFlagSet_JsonFlag(t *testing.T) {
+	var buf bytes.Buffer
+	flags := newFlagSet(&buf)
+
+	f := flags.Lookup("json")
+	if f == nil {
+		t.Fatal("expected --json flag to be registered")
+	}
+	if f.Shorthand != "j" {
+		t.Errorf("expected --json shorthand to be 'j', got %q", f.Shorthand)
+	}
+}

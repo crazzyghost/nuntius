@@ -34,6 +34,7 @@ func Commit(message string) (CommitResult, error) {
 	// Use `git commit -F -` to read the message from stdin.
 	// This handles multi-line messages and avoids shell escaping issues.
 	cmd := exec.Command("git", "commit", "-F", "-")
+	applyEnv(cmd)
 	cmd.Stdin = bytes.NewBufferString(message)
 
 	out, err := cmd.CombinedOutput()
