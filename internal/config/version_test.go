@@ -186,6 +186,53 @@ func TestCheckForUpdateWithStaleCache(t *testing.T) {
 	}
 }
 
+// TestCheckForUpdateSameVersionWithVPrefix ensures that a cached release whose
+// tag is "v0.0.1-alpha" does not trigger an update notice when the running
+// binary reports version "0.0.1-alpha" (no 'v' prefix), even if the release
+// publish date is after the build date.
+func TestCheckForUpdateSameVersionWithVPrefix(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "nuntius", "version-check.json")
+
+	writeCache(path, versionCache{
+		CheckedAt:   time.Now(),
+		LatestTag:   "v0.0.1-alpha",
+		PublishedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
+	})
+
+	origFunc := versionCachePathFunc
+	versionCachePathFunc = func() string { return path }
+	defer func() { versionCachePathFunc = origFunc }()
+
+	// Build date is before the release publish date, but it is the same version.
+	result := CheckForUpdate("0.0.1-alpha", "2026-02-01T00:00:00Z")
+	if result != nil {
+		t.Errorf("expected nil result for same version with differing v-prefix, got %+v", result)
+	}
+}
+
+// TestCheckForUpdateSameVersionNoVPrefix is the mirror: cached tag has no 'v',
+// but the running binary's version string includes the 'v'.
+func TestCheckForUpdateSameVersionNoVPrefix(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "nuntius", "version-check.json")
+
+	writeCache(path, versionCache{
+		CheckedAt:   time.Now(),
+		LatestTag:   "0.0.1-alpha",
+		PublishedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
+	})
+
+	origFunc := versionCachePathFunc
+	versionCachePathFunc = func() string { return path }
+	defer func() { versionCachePathFunc = origFunc }()
+
+	result := CheckForUpdate("v0.0.1-alpha", "2026-02-01T00:00:00Z")
+	if result != nil {
+		t.Errorf("expected nil result for same version with differing v-prefix, got %+v", result)
+	}
+}
+
 func TestCheckForUpdateNetworkFailure(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "nuntius", "version-check.json")

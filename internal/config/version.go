@@ -46,6 +46,15 @@ type githubRelease struct {
 	Prerelease  bool      `json:"prerelease"`
 }
 
+// normalizeVersion strips a leading 'v' or 'V' so that "v1.0.0" and "1.0.0"
+// compare as equal regardless of how the build was tagged.
+func normalizeVersion(v string) string {
+	if len(v) > 0 && (v[0] == 'v' || v[0] == 'V') {
+		return v[1:]
+	}
+	return v
+}
+
 // CheckForUpdate checks whether a newer version of nuntius is available by
 // comparing the build date of the running binary against the publish date of
 // the latest GitHub release. Returns nil when up-to-date, on dev builds, or
@@ -64,7 +73,8 @@ func CheckForUpdate(currentVersion, buildDate string) *VersionCheckResult {
 
 	if cached, ok := readCache(cachePath); ok {
 		if time.Since(cached.CheckedAt) < cacheTTL {
-			if cached.PublishedAt.After(buildTime) {
+			if cached.PublishedAt.After(buildTime) &&
+				normalizeVersion(cached.LatestTag) != normalizeVersion(currentVersion) {
 				return &VersionCheckResult{
 					LatestTag:       cached.LatestTag,
 					Current:         currentVersion,
@@ -86,7 +96,8 @@ func CheckForUpdate(currentVersion, buildDate string) *VersionCheckResult {
 		PublishedAt: release.PublishedAt,
 	})
 
-	if release.PublishedAt.After(buildTime) {
+	if release.PublishedAt.After(buildTime) &&
+		normalizeVersion(release.TagName) != normalizeVersion(currentVersion) {
 		return &VersionCheckResult{
 			LatestTag:       release.TagName,
 			Current:         currentVersion,
