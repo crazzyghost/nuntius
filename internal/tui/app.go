@@ -349,11 +349,13 @@ func (m AppModel) View() string {
 		statusLine = renderStatus(*m.statusEntry)
 	}
 
-	// Action bar with auto-mode badges.
+	// Action bar with auto-mode badges and provider badge.
 	abContent := m.actionbar.View()
 	if m.config.Behavior.AutoCommit || m.config.Behavior.AutoPush {
 		abContent += "  " + StatusMuted.Render(m.autoModeBadges())
 	}
+	// Provider/model badge: e.g. "claude · haiku"
+	abContent += "  " + StatusMuted.Render(m.providerBadge())
 	if m.version != "" {
 		versionTag := StatusMuted.Render(m.version)
 		abWidth := visibleWidth(abContent)
@@ -407,7 +409,7 @@ func (m *AppModel) triggerGenerate() []tea.Cmd {
 		return []tea.Cmd{reqCmd, errCmd}
 	}
 
-	return []tea.Cmd{reqCmd, generateCmd(m.provider, m.conventions)}
+	return []tea.Cmd{reqCmd, generateCmd(m.provider, m.config)}
 }
 
 // triggerCommit dispatches the commit flow.
@@ -449,6 +451,43 @@ func (m AppModel) autoModeBadges() string {
 		return ""
 	}
 	return "[" + strings.Join(badges, " | ") + "]"
+}
+
+// providerBadge returns a display string like "claude · haiku" or "no provider".
+func (m AppModel) providerBadge() string {
+	if m.provider == nil {
+		return "no provider"
+	}
+	name := m.provider.Name()
+	model := m.config.AI.Model
+	if model == "" {
+		model = defaultModelLabel(name)
+	}
+	if model == "" {
+		return name
+	}
+	return name + " · " + model
+}
+
+// defaultModelLabel maps a provider name to its default model display label.
+func defaultModelLabel(providerName string) string {
+	switch providerName {
+	case "claude":
+		return "haiku"
+	case "gemini":
+		return "flash"
+	case "codex":
+		return "gpt-4o-mini"
+	case "ollama":
+		return "llama3.2"
+	case "copilot":
+		return "copilot"
+	default:
+		if strings.HasSuffix(providerName, "-cli") || providerName == "custom" {
+			return "cli"
+		}
+		return ""
+	}
 }
 
 // formatErrorMsg creates a user-friendly error message with hints.

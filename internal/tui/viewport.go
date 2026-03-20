@@ -22,16 +22,16 @@ const (
 // ViewportModel is the scrollable viewport panel (Panel A) that alternates
 // between showing the changed file list and the generated commit message.
 type ViewportModel struct {
-	viewport viewport.Model
-	mode     viewMode
-	files    []events.FileStatus
-	message  string
+	viewport    viewport.Model
+	mode        viewMode
+	files       []events.FileStatus
+	message     string
 	loading     bool
 	loadingText string
 	spinner     spinner.Model
-	ready    bool
-	width    int
-	height   int
+	ready       bool
+	width       int
+	height      int
 }
 
 // NewViewport creates a new ViewportModel.

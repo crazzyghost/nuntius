@@ -46,9 +46,9 @@ func NewButton(label, key string) ButtonModel {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	return ButtonModel{
-		label: label,
-		key:   key,
-		state: btnNormal,
+		label:   label,
+		key:     key,
+		state:   btnNormal,
 		spinner: s,
 	}
 }

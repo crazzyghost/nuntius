@@ -12,6 +12,9 @@ type PushOptions struct {
 	// ForceWithLease uses --force-with-lease instead of a normal push.
 	// This is safer than bare --force as it prevents overwriting others' work.
 	ForceWithLease bool
+	// SetUpstream runs `git push --set-upstream origin <branch>` for new branches
+	// that have no remote tracking branch configured.
+	SetUpstream bool
 }
 
 // PushResult holds the outcome of a successful git push.
@@ -20,16 +23,43 @@ type PushResult struct {
 	Remote string
 	// Branch is the branch that was pushed.
 	Branch string
+	// SetUpstream reports whether --set-upstream was used.
+	SetUpstream bool
+}
+
+// CurrentBranch returns the name of the currently checked-out branch.
+// Returns an empty string on error.
+func CurrentBranch() string {
+	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// HasUpstream returns true if the current branch has a configured remote
+// tracking branch. Returns (false, nil) when no upstream is set.
+func HasUpstream() (bool, error) {
+	branch := CurrentBranch()
+	if branch == "" {
+		return false, nil
+	}
+	cmd := exec.Command("git", "config", fmt.Sprintf("branch.%s.remote", branch))
+	out, err := cmd.Output()
+	if err != nil {
+		// Exit code 1 means the config key doesn't exist — not a fatal error.
+		return false, nil
+	}
+	return strings.TrimSpace(string(out)) != "", nil
 }
 
 // Push executes `git push` and returns the result.
 // When opts.ForceWithLease is true, uses `--force-with-lease` (never bare `--force`).
+// When opts.SetUpstream is true, uses `--set-upstream origin <branch>`.
 // Returns an error with the remote's rejection message if push fails.
 func Push(opts PushOptions) (PushResult, error) {
-	args := []string{"push"}
-	if opts.ForceWithLease {
-		args = append(args, "--force-with-lease")
-	}
+	args := BuildPushArgs(opts)
 
 	cmd := exec.Command("git", args...)
 	out, err := cmd.CombinedOutput()
@@ -52,21 +82,19 @@ func Push(opts PushOptions) (PushResult, error) {
 	remote, branch := parseCurrentRemoteBranch()
 
 	return PushResult{
-		Remote: remote,
-		Branch: branch,
+		Remote:      remote,
+		Branch:      branch,
+		SetUpstream: opts.SetUpstream,
 	}, nil
 }
 
 // parseCurrentRemoteBranch returns the current remote and branch name
 // by inspecting the symbolic ref and remote tracking branch.
 func parseCurrentRemoteBranch() (remote, branch string) {
-	// Get current branch name
-	branchCmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
-	branchOut, err := branchCmd.Output()
-	if err != nil {
-		return "origin", "unknown"
+	branch = CurrentBranch()
+	if branch == "" {
+		branch = "unknown"
 	}
-	branch = strings.TrimSpace(string(branchOut))
 
 	// Get remote for the current branch
 	remoteCmd := exec.Command("git", "config", fmt.Sprintf("branch.%s.remote", branch))
@@ -89,6 +117,13 @@ func BuildPushArgs(opts PushOptions) []string {
 	args := []string{"push"}
 	if opts.ForceWithLease {
 		args = append(args, "--force-with-lease")
+	}
+	if opts.SetUpstream {
+		branch := CurrentBranch()
+		if branch == "" {
+			branch = "HEAD"
+		}
+		args = append(args, "--set-upstream", "origin", branch)
 	}
 	return args
 }

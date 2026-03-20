@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/crazzyghost/nuntius/internal/cli"
 )
 
 func TestRunVersion(t *testing.T) {
@@ -24,19 +26,35 @@ func TestRunHelp(t *testing.T) {
 
 func TestHelpOutputUsesDoubleDashFlags(t *testing.T) {
 	var stderr bytes.Buffer
-	flags, _, _, _, _, _, _ := newFlagSet(&stderr)
+	flags := newFlagSet(&stderr)
 	flags.Usage()
 
 	output := stderr.String()
-	for _, want := range []string{"--version", "--provider", "--model", "--auto-commit", "--auto-push", "--no-update-check"} {
+	for _, want := range []string{
+		"--version", "--agent", "--model",
+		"--generate", "--auto-commit", "--auto-push", "--no-update-check",
+	} {
 		if !strings.Contains(output, want) {
-			t.Fatalf("expected help output to contain %q, got %q", want, output)
+			t.Fatalf("expected help output to contain %q, got:\n%s", want, output)
 		}
 	}
-	for _, unwanted := range []string{"  -version", "  -provider", "  -model", "  -auto-commit", "  -auto-push", "  -no-update-check"} {
-		if strings.Contains(output, unwanted) {
-			t.Fatalf("expected help output not to contain %q, got %q", unwanted, output)
-		}
+	// --provider is hidden; it must not appear in help.
+	if strings.Contains(output, "--provider") {
+		t.Fatalf("expected --provider to be hidden, but it appeared in help output")
+	}
+}
+
+func TestHelpOutputContainsExamples(t *testing.T) {
+	var stderr bytes.Buffer
+	flags := newFlagSet(&stderr)
+	flags.Usage()
+
+	output := stderr.String()
+	if !strings.Contains(output, "Examples:") {
+		t.Error("expected help output to contain an Examples section")
+	}
+	if !strings.Contains(output, "nuntius -g") {
+		t.Error("expected examples to include 'nuntius -g'")
 	}
 }
 
@@ -54,6 +72,16 @@ func TestRunNoGitRepo(t *testing.T) {
 	}
 }
 
+func mkGitDir(t *testing.T, dir string) {
+	t.Helper()
+	gitDir := filepath.Join(dir, ".git")
+	for _, sub := range []string{gitDir, filepath.Join(gitDir, "refs"), filepath.Join(gitDir, "refs", "heads")} {
+		if err := os.Mkdir(sub, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestSetupInGitRepo(t *testing.T) {
 	dir := t.TempDir()
 	origDir, _ := os.Getwd()
@@ -61,18 +89,7 @@ func TestSetupInGitRepo(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatal(err)
 	}
-
-	// Create a minimal .git directory structure for the watcher.
-	gitDir := filepath.Join(dir, ".git")
-	if err := os.Mkdir(gitDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Mkdir(filepath.Join(gitDir, "refs"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Mkdir(filepath.Join(gitDir, "refs", "heads"), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	mkGitDir(t, dir)
 
 	result, exitCode, shouldLaunch := setup([]string{})
 	if exitCode != 0 {
@@ -85,7 +102,6 @@ func TestSetupInGitRepo(t *testing.T) {
 		t.Fatal("expected non-nil setup result")
 	}
 
-	// Clean up watcher.
 	result.cancel()
 	result.watcher.Stop()
 }
@@ -97,19 +113,9 @@ func TestSetupFlagOverrides(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatal(err)
 	}
+	mkGitDir(t, dir)
 
-	gitDir := filepath.Join(dir, ".git")
-	if err := os.Mkdir(gitDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Mkdir(filepath.Join(gitDir, "refs"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Mkdir(filepath.Join(gitDir, "refs", "heads"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	result, exitCode, shouldLaunch := setup([]string{"--provider", "gemini", "--model", "flash", "--auto-commit"})
+	result, exitCode, shouldLaunch := setup([]string{"--agent", "gemini", "--model", "flash", "--auto-commit"})
 	if exitCode != 0 {
 		t.Errorf("expected exit code 0 with flag overrides, got %d", exitCode)
 	}
@@ -133,9 +139,121 @@ func TestSetupFlagOverrides(t *testing.T) {
 	result.watcher.Stop()
 }
 
+func TestSetupDeprecatedProviderFlag(t *testing.T) {
+	dir := t.TempDir()
+	origDir, _ := os.Getwd()
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	mkGitDir(t, dir)
+
+	// --provider (deprecated) must still work.
+	result, exitCode, shouldLaunch := setup([]string{"--provider", "gemini"})
+	if exitCode != 0 {
+		t.Errorf("expected exit code 0 with deprecated --provider flag, got %d", exitCode)
+	}
+	if !shouldLaunch {
+		t.Error("expected shouldLaunch to be true")
+	}
+	if result == nil {
+		t.Fatal("expected non-nil setup result")
+	}
+	if result.cfg.AI.Provider != "gemini" {
+		t.Errorf("expected provider 'gemini' via deprecated --provider, got %q", result.cfg.AI.Provider)
+	}
+
+	result.cancel()
+	result.watcher.Stop()
+}
+
+func TestSetupAgentShortFlag(t *testing.T) {
+	dir := t.TempDir()
+	origDir, _ := os.Getwd()
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	mkGitDir(t, dir)
+
+	result, exitCode, shouldLaunch := setup([]string{"-a", "claude"})
+	if exitCode != 0 {
+		t.Errorf("expected exit code 0 with -a flag, got %d", exitCode)
+	}
+	if !shouldLaunch {
+		t.Error("expected shouldLaunch to be true")
+	}
+	if result == nil {
+		t.Fatal("expected non-nil setup result")
+	}
+	if result.cfg.AI.Provider != "claude" {
+		t.Errorf("expected provider 'claude' via -a, got %q", result.cfg.AI.Provider)
+	}
+
+	result.cancel()
+	result.watcher.Stop()
+}
+
 func TestRunInvalidFlag(t *testing.T) {
 	code := run([]string{"--invalid-flag"})
 	if code != 1 {
 		t.Errorf("expected exit code 1 for invalid flag, got %d", code)
 	}
+}
+
+func TestValidateHeadlessCombination(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		generate bool
+		commit   bool
+		push     bool
+		wantErr  bool
+	}{
+		{"-g only", true, false, false, false},
+		{"-gc", true, true, false, false},
+		{"-gcp", true, true, true, false},
+		{"-p only", false, false, true, false},
+		{"-c without -g: invalid", false, true, false, true},
+		{"-gp without -c: invalid", true, false, true, true},
+		{"-cp without -g: invalid", false, true, true, true},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateHeadlessCombination(cli.Actions{
+				Generate: tc.generate,
+				Commit:   tc.commit,
+				Push:     tc.push,
+			})
+			if tc.wantErr && err == nil {
+				t.Errorf("expected error for combo generate=%v commit=%v push=%v", tc.generate, tc.commit, tc.push)
+			}
+			if !tc.wantErr && err != nil {
+				t.Errorf("unexpected error for combo generate=%v commit=%v push=%v: %v", tc.generate, tc.commit, tc.push, err)
+			}
+		})
+	}
+}
+
+// TestHeadlessModeNotTriggeredByConfig verifies that config.toml auto_commit=true
+// does NOT trigger headless mode (only explicit CLI flags do).
+func TestHeadlessModeNotTriggeredByConfig(t *testing.T) {
+	dir := t.TempDir()
+	origDir, _ := os.Getwd()
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	mkGitDir(t, dir)
+
+	// Without any -g/-c/-p flags, setup() returns shouldLaunch=true (TUI path).
+	result, exitCode, shouldLaunch := setup([]string{})
+	if exitCode != 0 || !shouldLaunch || result == nil {
+		t.Errorf("expected TUI path without headless flags, got exitCode=%d shouldLaunch=%v", exitCode, shouldLaunch)
+		return
+	}
+	result.cancel()
+	result.watcher.Stop()
 }

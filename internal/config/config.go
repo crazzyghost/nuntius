@@ -29,6 +29,9 @@ type AIConfig struct {
 	CLICommand string `toml:"cli_command"`
 	// CLIArgs are extra arguments appended to the CLI command.
 	CLIArgs []string `toml:"cli_args"`
+	// TimeoutSeconds is the maximum number of seconds to wait for an AI response.
+	// Defaults to 60 seconds when 0.
+	TimeoutSeconds int `toml:"timeout_seconds"`
 }
 
 // BehaviorConfig controls automatic actions after message generation.

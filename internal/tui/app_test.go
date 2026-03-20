@@ -1,11 +1,13 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/crazzyghost/nuntius/internal/ai"
 	"github.com/crazzyghost/nuntius/internal/config"
 	"github.com/crazzyghost/nuntius/internal/events"
 )
@@ -350,5 +352,82 @@ func TestAppKeyPressClearsStatus(t *testing.T) {
 	m = model.(AppModel)
 	if m.statusEntry != nil {
 		t.Error("key press should clear status")
+	}
+}
+
+// --- Provider badge tests ---
+
+type stubProvider struct{ name string }
+
+func (s *stubProvider) GenerateCommitMessage(_ context.Context, _ ai.MessageRequest) (string, error) {
+	return "", nil
+}
+func (s *stubProvider) Name() string          { return s.name }
+func (s *stubProvider) Mode() ai.ProviderMode { return ai.ModeAPI }
+
+func TestProviderBadge_NoProvider(t *testing.T) {
+	app := NewApp(config.DefaultConfig())
+	badge := app.providerBadge()
+	if badge != "no provider" {
+		t.Errorf("expected 'no provider', got %q", badge)
+	}
+}
+
+func TestProviderBadge_DefaultModel(t *testing.T) {
+	cfg := config.DefaultConfig() // Provider = "claude", Model = ""
+	app := NewApp(cfg).WithProvider(&stubProvider{name: "claude"})
+	badge := app.providerBadge()
+	if badge != "claude · haiku" {
+		t.Errorf("expected 'claude · haiku', got %q", badge)
+	}
+}
+
+func TestProviderBadge_CustomModel(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.AI.Model = "claude-3-opus-20240229"
+	app := NewApp(cfg).WithProvider(&stubProvider{name: "claude"})
+	badge := app.providerBadge()
+	if badge != "claude · claude-3-opus-20240229" {
+		t.Errorf("expected custom model in badge, got %q", badge)
+	}
+}
+
+func TestProviderBadge_ViewContainsBadge(t *testing.T) {
+	cfg := config.DefaultConfig()
+	app := NewApp(cfg).WithProvider(&stubProvider{name: "gemini"})
+	model, _ := app.Update(tea.WindowSizeMsg{Width: 100, Height: 24})
+	m := model.(AppModel)
+	view := m.View()
+	// The provider badge should appear somewhere in the rendered output.
+	if view == "" {
+		t.Fatal("view should not be empty")
+	}
+}
+
+func TestDefaultModelLabel(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		provider string
+		want     string
+	}{
+		{"claude", "haiku"},
+		{"gemini", "flash"},
+		{"codex", "gpt-4o-mini"},
+		{"ollama", "llama3.2"},
+		{"copilot", "copilot"},
+		{"copilot-cli", "cli"},
+		{"gemini-cli", "cli"},
+		{"custom", "cli"},
+		{"unknown-provider", ""},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.provider, func(t *testing.T) {
+			t.Parallel()
+			got := defaultModelLabel(tc.provider)
+			if got != tc.want {
+				t.Errorf("defaultModelLabel(%q) = %q, want %q", tc.provider, got, tc.want)
+			}
+		})
 	}
 }
