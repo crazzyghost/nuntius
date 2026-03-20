@@ -145,10 +145,16 @@ func (m ViewportModel) headerView() string {
 	return title
 }
 
-// footerView shows scroll position.
+// footerView shows scroll position on the left and a quit hint on the right.
 func (m ViewportModel) footerView() string {
 	percent := m.viewport.ScrollPercent() * 100
-	return StatusMuted.Render(fmt.Sprintf("  %3.0f%%", percent))
+	left := StatusMuted.Render(fmt.Sprintf("  %3.0f%%", percent))
+	right := StatusMuted.Render("[q] quit  ")
+	gap := m.width - visibleWidth(left) - visibleWidth(right)
+	if gap < 0 {
+		gap = 0
+	}
+	return left + strings.Repeat(" ", gap) + right
 }
 
 // updateContent rebuilds the viewport content based on current mode.
