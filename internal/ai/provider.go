@@ -47,29 +47,69 @@ func NewProvider(cfg config.AIConfig) (Provider, error) {
 	switch cfg.Provider {
 	// --- API adapters (HTTP) ---
 	case "claude":
-		return NewClaude(cfg)
+		p, err := NewClaude(cfg)
+		if err != nil {
+			return nil, err
+		}
+		return p, nil
 	case "gemini":
-		return NewGemini(cfg)
+		p, err := NewGemini(cfg)
+		if err != nil {
+			return nil, err
+		}
+		return p, nil
 	case "codex":
-		return NewCodex(cfg)
+		p, err := NewCodex(cfg)
+		if err != nil {
+			return nil, err
+		}
+		return p, nil
 	case "copilot":
-		return NewCopilot(cfg)
+		p, err := NewCopilot(cfg)
+		if err != nil {
+			return nil, err
+		}
+		return p, nil
 	case "ollama":
-		return NewOllama(cfg)
+		p, err := NewOllama(cfg)
+		if err != nil {
+			return nil, err
+		}
+		return p, nil
 	// --- CLI adapters (shell exec) ---
 	case "copilot-cli":
-		return NewCLIAgent(cfg, "copilot", nil)
+		p, err := NewCLIAgent(cfg, "copilot", nil)
+		if err != nil {
+			return nil, err
+		}
+		return p, nil
 	case "gemini-cli":
-		return NewCLIAgent(cfg, "gemini", nil)
+		p, err := NewCLIAgent(cfg, "gemini", nil)
+		if err != nil {
+			return nil, err
+		}
+		return p, nil
 	case "claude-cli":
-		return NewCLIAgent(cfg, "claude", nil)
+		p, err := NewCLIAgent(cfg, "claude", nil)
+		if err != nil {
+			return nil, err
+		}
+		return p, nil
 	case "codex-cli":
-		return NewCLIAgent(cfg, "codex", nil)
+		p, err := NewCLIAgent(cfg, "codex", nil)
+		if err != nil {
+			return nil, err
+		}
+		return p, nil
 	case "custom":
 		if cfg.CLICommand == "" {
 			return nil, fmt.Errorf("provider %q requires cli_command to be set", cfg.Provider)
 		}
-		return NewCLIAgent(cfg, cfg.CLICommand, cfg.CLIArgs)
+		p, err := NewCLIAgent(cfg, cfg.CLICommand, cfg.CLIArgs)
+		if err != nil {
+			return nil, err
+		}
+		return p, nil
 	default:
 		return nil, fmt.Errorf("unknown AI provider: %q", cfg.Provider)
 	}

@@ -25,7 +25,7 @@ func (m *mockProvider) GenerateCommitMessage(_ context.Context, _ ai.MessageRequ
 func (m *mockProvider) Name() string          { return "mock" }
 func (m *mockProvider) Mode() ai.ProviderMode { return ai.ModeAPI }
 
-// mockGitOps is a test double for cli.GitOps.
+// mockGitOps is a test double for git.Ops.
 type mockGitOps struct {
 	statusFiles  []events.FileStatus
 	statusErr    error

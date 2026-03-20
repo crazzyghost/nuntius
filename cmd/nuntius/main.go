@@ -148,6 +148,14 @@ func setup(args []string) (*setupResult, int, bool) {
 }
 
 func run(args []string) int {
+	// Check for subcommands before flag parsing.
+	if len(args) > 0 && args[0] == "mcp" {
+		return runMCP(args[1:])
+	}
+	return runDefault(args)
+}
+
+func runDefault(args []string) int {
 	flags := newFlagSet(os.Stderr)
 
 	if err := flags.Parse(args); err != nil {

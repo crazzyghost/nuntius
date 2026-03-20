@@ -7,7 +7,6 @@ import (
 	"github.com/crazzyghost/nuntius/internal/ai"
 	"github.com/crazzyghost/nuntius/internal/config"
 	"github.com/crazzyghost/nuntius/internal/engine"
-	"github.com/crazzyghost/nuntius/internal/events"
 	"github.com/crazzyghost/nuntius/internal/git"
 )
 
@@ -24,36 +23,14 @@ type Actions struct {
 	ExternalDiff string
 }
 
-// GitOps abstracts git operations for testability.
-// The production implementation delegates to the git package functions.
-// Tests inject a mock.
-type GitOps interface {
-	Status() ([]events.FileStatus, error)
-	StageAll() error
-	Commit(message string) (git.CommitResult, error)
-	Push(opts git.PushOptions) (git.PushResult, error)
-	HasUpstream() (bool, error)
-}
-
-// defaultGitOps delegates to the real git package.
-type defaultGitOps struct{}
-
-func (defaultGitOps) Status() ([]events.FileStatus, error) { return git.Status() }
-func (defaultGitOps) StageAll() error                      { return git.StageAll() }
-func (defaultGitOps) Commit(msg string) (git.CommitResult, error) {
-	return git.Commit(msg)
-}
-func (defaultGitOps) Push(opts git.PushOptions) (git.PushResult, error) { return git.Push(opts) }
-func (defaultGitOps) HasUpstream() (bool, error)                        { return git.HasUpstream() }
-
 // Run executes the headless CLI pipeline and returns a structured Result.
 // It uses real git and AI provider operations.
 func Run(ctx context.Context, cfg config.Config, provider ai.Provider, actions Actions) Result {
-	return run(ctx, cfg, provider, actions, defaultGitOps{})
+	return run(ctx, cfg, provider, actions, git.DefaultOps{})
 }
 
-// run is the internal implementation that accepts a GitOps for testability.
-func run(ctx context.Context, cfg config.Config, provider ai.Provider, actions Actions, gitOps GitOps) Result {
+// run is the internal implementation that accepts a git.Ops for testability.
+func run(ctx context.Context, cfg config.Config, provider ai.Provider, actions Actions, gitOps git.Ops) Result {
 	// Push-only mode: push existing unpushed commits without generating.
 	if actions.Push && !actions.Generate && !actions.Commit {
 		return doPush(ctx, gitOps, cfg.Behavior.ForcePush)
@@ -131,7 +108,7 @@ func run(ctx context.Context, cfg config.Config, provider ai.Provider, actions A
 }
 
 // doPush handles the push-only (-p without -g/-c) path.
-func doPush(_ context.Context, gitOps GitOps, forceWithLease bool) Result {
+func doPush(_ context.Context, gitOps git.Ops, forceWithLease bool) Result {
 	r := Result{DiffSource: "auto"}
 	remote, branch, setUpstream, err := executePush(context.Background(), gitOps, forceWithLease)
 	if err != nil {
@@ -148,7 +125,7 @@ func doPush(_ context.Context, gitOps GitOps, forceWithLease bool) Result {
 }
 
 // executePush performs the actual push, auto-setting upstream when needed.
-func executePush(_ context.Context, gitOps GitOps, forceWithLease bool) (remote, branch string, setUpstream bool, err error) {
+func executePush(_ context.Context, gitOps git.Ops, forceWithLease bool) (remote, branch string, setUpstream bool, err error) {
 	hasUpstream, err := gitOps.HasUpstream()
 	if err != nil {
 		return "", "", false, err

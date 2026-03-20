@@ -395,3 +395,43 @@ func TestNewFlagSet_DiffFromFlag(t *testing.T) {
 		t.Errorf("expected default value 'auto', got %q", f.DefValue)
 	}
 }
+
+func TestRunMCPVersion(t *testing.T) {
+	code := run([]string{"mcp", "--version"})
+	if code != 0 {
+		t.Errorf("expected exit code 0 for 'nuntius mcp --version', got %d", code)
+	}
+}
+
+func TestRunMCPHelp(t *testing.T) {
+	code := run([]string{"mcp", "--help"})
+	if code != 0 {
+		t.Errorf("expected exit code 0 for 'nuntius mcp --help', got %d", code)
+	}
+}
+
+func TestRunSubcommandRouting_DefaultPath(t *testing.T) {
+	// Non-mcp first arg should NOT be treated as a subcommand.
+	// It falls through to runDefault, which then tries to launch TUI in a non-git dir.
+	dir := t.TempDir()
+	origDir, _ := os.Getwd()
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+
+	// "invalidcmd" is not a recognised subcommand; runDefault runs and fails (not a git repo).
+	code := run([]string{"invalidcmd"})
+	if code != 1 {
+		t.Errorf("expected exit code 1 for unrecognised arg in non-git dir, got %d", code)
+	}
+}
+
+func TestRunMCP_Routing(t *testing.T) {
+	// Verify that "mcp" prefix args are routed to runMCP (not runDefault).
+	// --version returns 0 without requiring config or git.
+	code := run([]string{"mcp", "--version"})
+	if code != 0 {
+		t.Errorf("expected exit 0 routing to runMCP --version, got %d", code)
+	}
+}
