@@ -139,6 +139,9 @@ func TestWizardDefaultResult(t *testing.T) {
 	if r.Provider != "claude" {
 		t.Errorf("expected provider %q, got %q", "claude", r.Provider)
 	}
+	if r.Mode != "cli" {
+		t.Errorf("expected mode %q, got %q", "cli", r.Mode)
+	}
 	if r.Model != "claude-haiku-4.5" {
 		t.Errorf("expected model %q, got %q", "claude-haiku-4.5", r.Model)
 	}
@@ -153,19 +156,40 @@ func TestWizardDefaultResult(t *testing.T) {
 	}
 }
 
-func TestWizardCliModeSuffix(t *testing.T) {
+func TestWizardCLIModeResult(t *testing.T) {
 	w := NewWizard()
-	w = sendKey(t, w, "enter")
-	w = sendKey(t, w, "enter")
-	w = sendKey(t, w, "up")
-	w = sendKey(t, w, "enter")
+	w = sendKey(t, w, "enter") // step 0: select claude
+	w = sendKey(t, w, "enter") // step 1: select model
+	// step 2: cursor is already at 0 (cli) — just confirm
+	w = sendKey(t, w, "enter") // confirm cli
 	for i := 3; i <= 5; i++ {
 		w = sendKey(t, w, "enter")
 	}
-
 	r := w.Result()
-	if r.Provider != "claude-cli" {
-		t.Errorf("expected provider %q, got %q", "claude-cli", r.Provider)
+	if r.Provider != "claude" {
+		t.Errorf("expected provider %q, got %q", "claude", r.Provider)
+	}
+	if r.Mode != "cli" {
+		t.Errorf("expected mode %q, got %q", "cli", r.Mode)
+	}
+}
+
+func TestWizardAPIModeResult(t *testing.T) {
+	w := NewWizard()
+	w = sendKey(t, w, "enter") // step 0: select claude
+	w = sendKey(t, w, "enter") // step 1: select model
+	// step 2: cursor at 0 (cli), press down to select api (index 1)
+	w = sendKey(t, w, "down")
+	w = sendKey(t, w, "enter") // confirm api
+	for i := 3; i <= 5; i++ {
+		w = sendKey(t, w, "enter")
+	}
+	r := w.Result()
+	if r.Provider != "claude" {
+		t.Errorf("expected provider %q, got %q", "claude", r.Provider)
+	}
+	if r.Mode != "api" {
+		t.Errorf("expected mode %q, got %q", "api", r.Mode)
 	}
 }
 
@@ -256,6 +280,7 @@ func TestWriteConfigToPath(t *testing.T) {
 
 	result := WizardResult{
 		Provider:        "claude",
+		Mode:            "cli",
 		Model:           "claude-haiku-4.5",
 		AutoCommit:      false,
 		AutoPush:        false,
@@ -272,6 +297,7 @@ func TestWriteConfigToPath(t *testing.T) {
 	content := string(data)
 	checks := []string{
 		`provider = "claude"`,
+		`mode = "cli"`,
 		`model = "claude-haiku-4.5"`,
 		`auto_commit = false`,
 		`auto_push = false`,
@@ -284,13 +310,14 @@ func TestWriteConfigToPath(t *testing.T) {
 	}
 }
 
-func TestWriteConfigCliProvider(t *testing.T) {
+func TestWriteConfigWithMode(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.toml")
 
 	result := WizardResult{
-		Provider:        "copilot-cli",
+		Provider:        "copilot",
+		Mode:            "cli",
 		Model:           "gpt-4o-mini",
 		AutoCommit:      false,
 		AutoPush:        false,
@@ -301,7 +328,11 @@ func TestWriteConfigCliProvider(t *testing.T) {
 	}
 
 	data, _ := os.ReadFile(path)
-	if !strings.Contains(string(data), `provider = "copilot-cli"`) {
-		t.Errorf("expected copilot-cli in config, got:\n%s", string(data))
+	content := string(data)
+	if !strings.Contains(content, `provider = "copilot"`) {
+		t.Errorf("expected provider = copilot in config, got:\n%s", content)
+	}
+	if !strings.Contains(content, `mode = "cli"`) {
+		t.Errorf("expected mode = cli in config, got:\n%s", content)
 	}
 }

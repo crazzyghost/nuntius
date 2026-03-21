@@ -27,8 +27,9 @@ func writeConfigToPath(path string, result WizardResult) error {
 	defer func() { _ = f.Close() }()
 
 	_, err = fmt.Fprintf(f,
-		"[ai]\nprovider = %q\nmodel = %q\n\n[behavior]\nauto_commit = %v\nauto_push = %v\nauto_update_check = %v\n",
+		"[ai]\nprovider = %q\nmode = %q\nmodel = %q\n\n[behavior]\nauto_commit = %v\nauto_push = %v\nauto_update_check = %v\n",
 		result.Provider,
+		result.Mode,
 		result.Model,
 		result.AutoCommit,
 		result.AutoPush,

@@ -217,6 +217,7 @@ func clearNuntiusEnv(t *testing.T) {
 	t.Helper()
 	envVars := []string{
 		"NUNTIUS_AI_PROVIDER",
+		"NUNTIUS_AI_MODE",
 		"NUNTIUS_AI_MODEL",
 		"NUNTIUS_AI_API_KEY_ENV",
 		"NUNTIUS_AI_OLLAMA_URL",
@@ -442,5 +443,34 @@ func TestLoadNoMigrationFromOldPath(t *testing.T) {
 	newConfig := filepath.Join(home, ".nuntius", "config.toml")
 	if fileExists(newConfig) {
 		t.Error("Load() should not auto-migrate from the legacy config path")
+	}
+}
+
+func TestLoadEnvOverrideMode(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	dir := t.TempDir()
+	origDir, _ := os.Getwd()
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	clearNuntiusEnv(t)
+	t.Setenv("NUNTIUS_AI_MODE", "api")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.AI.Mode != "api" {
+		t.Errorf("expected mode %q from env, got %q", "api", cfg.AI.Mode)
+	}
+}
+
+func TestMergeFlagsMode(t *testing.T) {
+	cfg := DefaultConfig()
+	MergeFlags(&cfg, FlagOverrides{Mode: "api"})
+	if cfg.AI.Mode != "api" {
+		t.Errorf("expected mode %q after flag merge, got %q", "api", cfg.AI.Mode)
 	}
 }

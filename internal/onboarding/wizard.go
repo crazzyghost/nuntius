@@ -36,7 +36,7 @@ type Wizard struct {
 }
 
 // NewWizard creates a new onboarding wizard with sensible defaults.
-// Default selections: claude provider, http mode, update check on.
+// Default selections: claude provider, cli mode, update check on.
 func NewWizard() Wizard {
 	ti := textinput.New()
 	ti.Placeholder = "e.g. llama3.2"
@@ -45,8 +45,8 @@ func NewWizard() Wizard {
 	w := Wizard{
 		ollamaInput: ti,
 	}
-	// Step 2 (mode): default is http = index 1 (cli is index 0).
-	w.cursors[2] = 1
+	// Step 2 (mode): default is cli = index 0.
+	w.cursors[2] = defaultModeIndex("")
 	return w
 }
 
@@ -75,13 +75,9 @@ func (w Wizard) Result() WizardResult {
 		}
 	}
 
-	// Apply CLI mode: append "-cli" suffix to provider.
-	if ModeOptions[w.cursors[2]].Value == "cli" {
-		provider = provider + "-cli"
-	}
-
 	return WizardResult{
 		Provider:        provider,
+		Mode:            ModeOptions[w.cursors[2]].Value,
 		Model:           model,
 		AutoCommit:      AutoCommitOptions[w.cursors[3]].Value == "true",
 		AutoPush:        AutoPushOptions[w.cursors[4]].Value == "true",

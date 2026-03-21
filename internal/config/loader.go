@@ -83,6 +83,9 @@ func applyEnvOverrides(cfg *Config) {
 	if v := os.Getenv("NUNTIUS_AI_PROVIDER"); v != "" {
 		cfg.AI.Provider = v
 	}
+	if v := os.Getenv("NUNTIUS_AI_MODE"); v != "" {
+		cfg.AI.Mode = v
+	}
 	if v := os.Getenv("NUNTIUS_AI_MODEL"); v != "" {
 		cfg.AI.Model = v
 	}
@@ -144,6 +147,7 @@ func fileExists(path string) bool {
 // Only non-zero-value flags are merged.
 type FlagOverrides struct {
 	Provider   string
+	Mode       string
 	Model      string
 	AutoCommit *bool
 	AutoPush   *bool
@@ -153,6 +157,9 @@ type FlagOverrides struct {
 func MergeFlags(cfg *Config, flags FlagOverrides) {
 	if flags.Provider != "" {
 		cfg.AI.Provider = flags.Provider
+	}
+	if flags.Mode != "" {
+		cfg.AI.Mode = flags.Mode
 	}
 	if flags.Model != "" {
 		cfg.AI.Model = flags.Model

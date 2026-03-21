@@ -15,9 +15,11 @@ type Config struct {
 // AIConfig holds settings for the AI provider.
 type AIConfig struct {
 	// Provider selects the AI backend.
-	// API providers: "claude", "codex", "copilot", "gemini", "ollama"
-	// CLI providers: "copilot-cli", "gemini-cli", "claude-cli", "custom"
+	// API providers: "claude", "codex", "gemini", "ollama"
+	// CLI providers: "copilot", "gemini", "claude", "codex", "ollama", "custom"
 	Provider string `toml:"provider"`
+	// Mode selects the connection mode: "api" or "cli". Defaults to "cli" when empty.
+	Mode string `toml:"mode"`
 	// Model overrides the provider's default model. Empty uses the provider default.
 	Model string `toml:"model"`
 	// APIKeyEnv is the name of the environment variable holding the API key.

@@ -9,6 +9,7 @@ type Option struct {
 // WizardResult holds the configuration choices made during onboarding.
 type WizardResult struct {
 	Provider        string
+	Mode            string // "api" or "cli"
 	Model           string
 	AutoCommit      bool
 	AutoPush        bool
@@ -46,10 +47,16 @@ var ModelOptions = map[string][]Option{
 	},
 }
 
-// ModeOptions lists connection modes. Default is "http" (index 1).
+// ModeOptions lists connection modes. Default is "cli" (index 0).
 var ModeOptions = []Option{
 	{Label: "cli — uses locally installed CLI tool (e.g. gh, claude)", Value: "cli"},
-	{Label: "http — connects directly via API (requires API key)", Value: "http"},
+	{Label: "api — connects directly via API (requires API key)", Value: "api"},
+}
+
+// defaultModeIndex returns the default cursor index for the mode selection step.
+// All providers default to CLI mode (index 0).
+func defaultModeIndex(_ string) int {
+	return 0
 }
 
 // AutoCommitOptions lists auto-commit choices. Default is "off" (index 0).

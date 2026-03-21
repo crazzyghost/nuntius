@@ -69,6 +69,7 @@ func setup(args []string) (*setupResult, int, bool) {
 
 	// Resolve the agent/provider flag (--agent/-a is primary, --provider is deprecated alias).
 	agent := resolveAgentFlag(flags)
+	agentMode, _ := flags.GetString("agent-mode")
 	model, _ := flags.GetString("model")
 	autoCommit, _ := flags.GetBool("auto-commit")
 	autoPush, _ := flags.GetBool("auto-push")
@@ -84,6 +85,7 @@ func setup(args []string) (*setupResult, int, bool) {
 	// Merge CLI flags (highest priority)
 	overrides := config.FlagOverrides{
 		Provider: agent,
+		Mode:     agentMode,
 		Model:    model,
 	}
 	if autoCommitSet {
@@ -238,9 +240,11 @@ func runDefault(args []string) int {
 	// TUI auto-behavior flags (--auto-commit, --auto-push) are intentionally
 	// ignored in headless mode.
 	agent := resolveAgentFlag(flags)
+	agentMode, _ := flags.GetString("agent-mode")
 	model, _ := flags.GetString("model")
 	overrides := config.FlagOverrides{
 		Provider: agent,
+		Mode:     agentMode,
 		Model:    model,
 	}
 	config.MergeFlags(&cfg, overrides)
@@ -398,6 +402,7 @@ func newFlagSet(output io.Writer) *pflag.FlagSet {
 	flags.String("provider", "", "AI provider override (deprecated: use --agent/-a)")
 	flags.Lookup("provider").Hidden = true
 
+	flags.String("agent-mode", "", "Connection mode: cli or api (no shorthand)")
 	flags.String("model", "", "AI model override")
 
 	// Headless action flags — trigger non-interactive execution.
@@ -432,6 +437,8 @@ func newFlagSet(output io.Writer) *pflag.FlagSet {
 		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -g --diff-from=staged   Generate from staged changes only\n")
 		_, _ = fmt.Fprintf(flags.Output(), "  git diff HEAD~3..HEAD | nuntius -g --diff-from=stdin  Pipe a diff\n")
 		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -g | git commit -F -   Pipe message to git commit\n")
+		_, _ = fmt.Fprintf(flags.Output(), "  nuntius --agent claude --agent-mode api  Use Claude via API\n")
+		_, _ = fmt.Fprintf(flags.Output(), "  nuntius --agent claude --agent-mode cli  Use Claude via CLI\n")
 	}
 
 	return flags
