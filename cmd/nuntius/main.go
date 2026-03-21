@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -46,6 +47,9 @@ func setup(args []string) (*setupResult, int, bool) {
 	autoPushSet := false
 
 	if err := flags.Parse(args); err != nil {
+		if errors.Is(err, pflag.ErrHelp) {
+			return nil, 0, false
+		}
 		return nil, 1, false
 	}
 
@@ -169,6 +173,9 @@ func runDefault(args []string) int {
 	flags := newFlagSet(os.Stderr)
 
 	if err := flags.Parse(args); err != nil {
+		if errors.Is(err, pflag.ErrHelp) {
+			return 0
+		}
 		return 1
 	}
 

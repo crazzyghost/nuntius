@@ -19,8 +19,15 @@ func TestRunVersion(t *testing.T) {
 
 func TestRunHelp(t *testing.T) {
 	code := run([]string{"--help"})
-	if code != 1 {
-		t.Errorf("expected exit code 1 for --help, got %d", code)
+	if code != 0 {
+		t.Errorf("expected exit code 0 for --help, got %d", code)
+	}
+}
+
+func TestRunHelpShorthand(t *testing.T) {
+	code := run([]string{"-h"})
+	if code != 0 {
+		t.Errorf("expected exit code 0 for -h, got %d", code)
 	}
 }
 
