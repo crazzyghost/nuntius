@@ -7,7 +7,11 @@ import (
 )
 
 func TestLoadNoFile(t *testing.T) {
-	// Load from a directory with no config files — should return defaults
+	// Load from a directory with no config files — should return defaults.
+	// Set HOME to a temp dir to avoid picking up the real global config.
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
 	dir := t.TempDir()
 	origDir, _ := os.Getwd()
 	defer func() { _ = os.Chdir(origDir) }()
@@ -31,6 +35,9 @@ func TestLoadNoFile(t *testing.T) {
 }
 
 func TestLoadRepoFile(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
 	dir := t.TempDir()
 	origDir, _ := os.Getwd()
 	defer func() { _ = os.Chdir(origDir) }()
@@ -115,6 +122,9 @@ provider = "ollama"
 }
 
 func TestLoadEnvOverride(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
 	dir := t.TempDir()
 	origDir, _ := os.Getwd()
 	defer func() { _ = os.Chdir(origDir) }()
@@ -155,6 +165,9 @@ provider = "claude"
 }
 
 func TestLoadInvalidTOML(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
 	dir := t.TempDir()
 	origDir, _ := os.Getwd()
 	defer func() { _ = os.Chdir(origDir) }()
@@ -249,114 +262,6 @@ func TestNuntiusDirIdempotent(t *testing.T) {
 	}
 }
 
-func TestMigrateConfigFile(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
-	t.Setenv("XDG_CACHE_HOME", filepath.Join(home, ".cache"))
-
-	oldConfigDir := filepath.Join(home, ".config", "nuntius")
-	if err := os.MkdirAll(oldConfigDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	oldConfig := filepath.Join(oldConfigDir, "config.toml")
-	content := "[ai]\nprovider = \"gemini\"\n"
-	if err := os.WriteFile(oldConfig, []byte(content), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	migrateConfigFiles()
-
-	newConfig := filepath.Join(home, ".nuntius", "config.toml")
-	data, err := os.ReadFile(newConfig)
-	if err != nil {
-		t.Fatalf("expected migrated config at %s: %v", newConfig, err)
-	}
-	if string(data) != content {
-		t.Errorf("migrated content = %q, want %q", string(data), content)
-	}
-	if _, err := os.Stat(oldConfig); err != nil {
-		t.Error("old config should not be deleted after migration")
-	}
-}
-
-func TestMigrateConfigFileNoOpWhenNewExists(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
-
-	newDir := filepath.Join(home, ".nuntius")
-	if err := os.MkdirAll(newDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	newConfig := filepath.Join(newDir, "config.toml")
-	newContent := "[ai]\nprovider = \"claude\"\n"
-	if err := os.WriteFile(newConfig, []byte(newContent), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	oldDir := filepath.Join(home, ".config", "nuntius")
-	if err := os.MkdirAll(oldDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(oldDir, "config.toml"), []byte("[ai]\nprovider = \"ollama\"\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	migrateConfigFiles()
-
-	data, err := os.ReadFile(newConfig)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(data) != newContent {
-		t.Errorf("migration should not overwrite existing new config; got %q", string(data))
-	}
-}
-
-func TestMigrateConfigFileNoOpWhenOldMissing(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
-
-	migrateConfigFiles()
-
-	newConfig := filepath.Join(home, ".nuntius", "config.toml")
-	if fileExists(newConfig) {
-		t.Error("expected no new config when old is missing")
-	}
-}
-
-func TestMigrateVersionCache(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("XDG_CACHE_HOME", filepath.Join(home, ".cache"))
-
-	oldCacheDir := filepath.Join(home, ".cache", "nuntius")
-	if err := os.MkdirAll(oldCacheDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	oldCache := filepath.Join(oldCacheDir, "version-check.json")
-	content := `{"latest_tag":"v1.0.0"}`
-	if err := os.WriteFile(oldCache, []byte(content), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	migrateConfigFiles()
-
-	newCache := filepath.Join(home, ".nuntius", "version-check.json")
-	data, err := os.ReadFile(newCache)
-	if err != nil {
-		t.Fatalf("expected migrated cache at %s: %v", newCache, err)
-	}
-	if string(data) != content {
-		t.Errorf("migrated cache content = %q, want %q", string(data), content)
-	}
-	if _, err := os.Stat(oldCache); err != nil {
-		t.Error("old cache file should not be deleted after migration")
-	}
-}
-
 func TestGlobalConfigPath(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
@@ -369,6 +274,9 @@ func TestGlobalConfigPath(t *testing.T) {
 }
 
 func TestAutoUpdateCheckTOML(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
 	dir := t.TempDir()
 	origDir, _ := os.Getwd()
 	defer func() { _ = os.Chdir(origDir) }()
@@ -392,6 +300,9 @@ func TestAutoUpdateCheckTOML(t *testing.T) {
 }
 
 func TestAutoUpdateCheckEnvVar(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
 	dir := t.TempDir()
 	origDir, _ := os.Getwd()
 	defer func() { _ = os.Chdir(origDir) }()
@@ -407,5 +318,129 @@ func TestAutoUpdateCheckEnvVar(t *testing.T) {
 	}
 	if cfg.Behavior.AutoUpdateCheck {
 		t.Error("expected AutoUpdateCheck = false from env var")
+	}
+}
+
+// TestLoadLayeredConfig verifies that repo config overlays on top of global config.
+func TestLoadLayeredConfig(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	repo := t.TempDir()
+	origDir, _ := os.Getwd()
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(repo); err != nil {
+		t.Fatal(err)
+	}
+	clearNuntiusEnv(t)
+
+	// Write global config with provider, model, and auto_commit
+	globalDir := filepath.Join(home, ".nuntius")
+	if err := os.MkdirAll(globalDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	globalContent := "[ai]\nprovider = \"claude\"\nmodel = \"claude-haiku-4.5\"\n\n[behavior]\nauto_commit = true\n"
+	if err := os.WriteFile(filepath.Join(globalDir, "config.toml"), []byte(globalContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write repo config — only overrides provider
+	repoContent := "[ai]\nprovider = \"ollama\"\n"
+	if err := os.WriteFile(filepath.Join(repo, ".nuntius.toml"), []byte(repoContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Repo overrides provider
+	if cfg.AI.Provider != "ollama" {
+		t.Errorf("expected provider 'ollama' (from repo), got %q", cfg.AI.Provider)
+	}
+	// Global model is preserved (not mentioned in repo config)
+	if cfg.AI.Model != "claude-haiku-4.5" {
+		t.Errorf("expected model 'claude-haiku-4.5' (from global, preserved), got %q", cfg.AI.Model)
+	}
+	// Global auto_commit is preserved (not mentioned in repo config)
+	if !cfg.Behavior.AutoCommit {
+		t.Error("expected auto_commit=true (from global, preserved by repo overlay)")
+	}
+}
+
+// TestLoadOnlyGlobalConfig verifies that global config is applied when no repo config exists.
+func TestLoadOnlyGlobalConfig(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	repo := t.TempDir()
+	origDir, _ := os.Getwd()
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(repo); err != nil {
+		t.Fatal(err)
+	}
+	clearNuntiusEnv(t)
+
+	globalDir := filepath.Join(home, ".nuntius")
+	if err := os.MkdirAll(globalDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	globalContent := "[ai]\nprovider = \"gemini\"\n\n[behavior]\nauto_push = true\n"
+	if err := os.WriteFile(filepath.Join(globalDir, "config.toml"), []byte(globalContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if cfg.AI.Provider != "gemini" {
+		t.Errorf("expected provider 'gemini' from global, got %q", cfg.AI.Provider)
+	}
+	if !cfg.Behavior.AutoPush {
+		t.Error("expected auto_push=true from global config")
+	}
+}
+
+// TestLoadNoMigrationFromOldPath verifies that having a config at the legacy
+// ~/.config/nuntius/ path does NOT auto-migrate or get loaded.
+func TestLoadNoMigrationFromOldPath(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+
+	repo := t.TempDir()
+	origDir, _ := os.Getwd()
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(repo); err != nil {
+		t.Fatal(err)
+	}
+	clearNuntiusEnv(t)
+
+	// Write config at the OLD XDG path only (not at ~/.nuntius/)
+	oldConfigDir := filepath.Join(home, ".config", "nuntius")
+	if err := os.MkdirAll(oldConfigDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(oldConfigDir, "config.toml"), []byte("[ai]\nprovider = \"gemini\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	defaults := DefaultConfig()
+	// Old path should NOT be read — expect default provider
+	if cfg.AI.Provider != defaults.AI.Provider {
+		t.Errorf("expected default provider (no migration from old path), got %q", cfg.AI.Provider)
+	}
+	// New path should NOT have been created by migration
+	newConfig := filepath.Join(home, ".nuntius", "config.toml")
+	if fileExists(newConfig) {
+		t.Error("Load() should not auto-migrate from the legacy config path")
 	}
 }

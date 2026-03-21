@@ -25,31 +25,32 @@ func NuntiusDir() string {
 // Load reads configuration from TOML files and environment variables,
 // merging them with the following priority (highest first):
 //
-// CLI flags (handled externally via MergeFlags) → env vars → repo .nuntius.toml → global config → defaults
+// CLI flags (handled externally via MergeFlags) → env vars → repo .nuntius.toml → global ~/.nuntius/config.toml → defaults
+//
+// Config files are layered: global config is loaded first, then repo config overlays
+// specific fields on top. This means a repo config that only sets [ai] provider
+// inherits all other settings (auto_commit, model, etc.) from the global config.
 func Load() (Config, error) {
-	migrateConfigFiles()
 	cfg := DefaultConfig()
 
-	// Try repo-level config first
 	repoConfig := ".nuntius.toml"
 	globalConfig := globalConfigPath()
 
-	loaded := false
-
-	if fileExists(repoConfig) {
-		if err := loadTOML(repoConfig, &cfg); err != nil {
-			return Config{}, fmt.Errorf("loading repo config %s: %w", repoConfig, err)
-		}
-		loaded = true
-	}
-
-	if !loaded && globalConfig != "" && fileExists(globalConfig) {
+	// Layer 1: Global config (lower precedence)
+	if globalConfig != "" && fileExists(globalConfig) {
 		if err := loadTOML(globalConfig, &cfg); err != nil {
 			return Config{}, fmt.Errorf("loading global config %s: %w", globalConfig, err)
 		}
 	}
 
-	// Environment variables override file values
+	// Layer 2: Repo config overlays on top (higher precedence)
+	if fileExists(repoConfig) {
+		if err := loadTOML(repoConfig, &cfg); err != nil {
+			return Config{}, fmt.Errorf("loading repo config %s: %w", repoConfig, err)
+		}
+	}
+
+	// Layer 3: Environment variables (highest file-level precedence)
 	applyEnvOverrides(&cfg)
 
 	return cfg, nil
@@ -72,54 +73,6 @@ func globalConfigPath() string {
 		return ""
 	}
 	return filepath.Join(dir, "config.toml")
-}
-
-// migrateConfigFiles migrates legacy config and cache files to ~/.nuntius/.
-// Migration is a best-effort copy — originals are preserved.
-func migrateConfigFiles() {
-	dir := NuntiusDir()
-	if dir == "" {
-		return
-	}
-
-	// Migrate global config: ~/.config/nuntius/config.toml → ~/.nuntius/config.toml
-	newConfig := filepath.Join(dir, "config.toml")
-	if !fileExists(newConfig) {
-		if oldConfigDir, err := os.UserConfigDir(); err == nil {
-			oldConfig := filepath.Join(oldConfigDir, "nuntius", "config.toml")
-			if fileExists(oldConfig) {
-				if err := copyFile(oldConfig, newConfig); err == nil {
-					fmt.Fprintf(os.Stderr, "nuntius: migrated config from %s to %s\n", oldConfig, newConfig)
-				}
-			}
-		}
-	}
-
-	// Migrate version cache: ~/.cache/nuntius/version-check.json → ~/.nuntius/version-check.json
-	newCache := filepath.Join(dir, "version-check.json")
-	if !fileExists(newCache) {
-		if oldCacheDir, err := os.UserCacheDir(); err == nil {
-			oldCache := filepath.Join(oldCacheDir, "nuntius", "version-check.json")
-			if fileExists(oldCache) {
-				_ = copyFile(oldCache, newCache)
-			}
-		}
-	}
-}
-
-// copyFile copies src to dst, creating parent directories as needed.
-func copyFile(src, dst string) error {
-	data, err := os.ReadFile(src)
-	if err != nil {
-		return fmt.Errorf("reading %s: %w", src, err)
-	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return fmt.Errorf("creating directory for %s: %w", dst, err)
-	}
-	if err := os.WriteFile(dst, data, 0o644); err != nil {
-		return fmt.Errorf("writing %s: %w", dst, err)
-	}
-	return nil
 }
 
 // applyEnvOverrides reads NUNTIUS_* environment variables and overrides

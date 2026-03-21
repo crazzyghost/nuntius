@@ -32,7 +32,7 @@ func TestHelpOutputUsesDoubleDashFlags(t *testing.T) {
 	output := stderr.String()
 	for _, want := range []string{
 		"--version", "--agent", "--model",
-		"--generate", "--auto-commit", "--auto-push", "--no-update-check",
+		"--generate", "--commit", "--push", "--auto-commit", "--auto-push", "--no-update-check",
 	} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("expected help output to contain %q, got:\n%s", want, output)
@@ -452,7 +452,9 @@ func TestSetupMutualExclusionWithGenerate(t *testing.T) {
 	}
 }
 
-func TestSetupMutualExclusionWithAutoCommit(t *testing.T) {
+// TestSetupMutualExclusionWithCommit verifies that --setup + -c (--commit, headless) fails.
+// -c now maps to --commit which triggers headless mode, so mutual exclusion fires.
+func TestSetupMutualExclusionWithCommit(t *testing.T) {
 	code := run([]string{"--setup", "-c"})
 	if code != 1 {
 		t.Errorf("expected exit code 1 for --setup with -c, got %d", code)
@@ -480,5 +482,128 @@ func TestSetupInHelpOutput(t *testing.T) {
 	flags.Usage()
 	if !strings.Contains(buf.String(), "--setup") {
 		t.Error("expected --setup to appear in help output")
+	}
+}
+
+func TestFlagShorthandMappings(t *testing.T) {
+	var buf bytes.Buffer
+	flags := newFlagSet(&buf)
+
+	// -c must map to --commit (headless), not --auto-commit
+	f := flags.ShorthandLookup("c")
+	if f == nil {
+		t.Fatal("expected -c shorthand to be registered")
+	}
+	if f.Name != "commit" {
+		t.Errorf("expected -c to map to --commit, got --%s", f.Name)
+	}
+
+	// -p must map to --push (headless), not --auto-push
+	f = flags.ShorthandLookup("p")
+	if f == nil {
+		t.Fatal("expected -p shorthand to be registered")
+	}
+	if f.Name != "push" {
+		t.Errorf("expected -p to map to --push, got --%s", f.Name)
+	}
+}
+
+func TestAutoCommitAutoPushNoShorthand(t *testing.T) {
+	var buf bytes.Buffer
+	flags := newFlagSet(&buf)
+
+	f := flags.Lookup("auto-commit")
+	if f == nil {
+		t.Fatal("expected --auto-commit flag to be registered")
+	}
+	if f.Shorthand != "" {
+		t.Errorf("expected --auto-commit to have no shorthand, got %q", f.Shorthand)
+	}
+
+	f = flags.Lookup("auto-push")
+	if f == nil {
+		t.Fatal("expected --auto-push flag to be registered")
+	}
+	if f.Shorthand != "" {
+		t.Errorf("expected --auto-push to have no shorthand, got %q", f.Shorthand)
+	}
+}
+
+func TestAutoCommitFlagLaunchesTUI(t *testing.T) {
+	dir := t.TempDir()
+	origDir, _ := os.Getwd()
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	mkGitDir(t, dir)
+
+	// --auto-commit alone must NOT trigger headless mode: setup() returns shouldLaunch=true
+	result, exitCode, shouldLaunch := setup([]string{"--auto-commit"})
+	if exitCode != 0 || !shouldLaunch || result == nil {
+		t.Errorf("expected TUI path with --auto-commit, got exitCode=%d shouldLaunch=%v", exitCode, shouldLaunch)
+		return
+	}
+	if !result.cfg.Behavior.AutoCommit {
+		t.Error("expected cfg.Behavior.AutoCommit=true when --auto-commit is passed")
+	}
+	result.cancel()
+	result.watcher.Stop()
+}
+
+func TestAutoCommitAutoPushLaunchesTUI(t *testing.T) {
+	dir := t.TempDir()
+	origDir, _ := os.Getwd()
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	mkGitDir(t, dir)
+
+	result, exitCode, shouldLaunch := setup([]string{"--auto-commit", "--auto-push"})
+	if exitCode != 0 || !shouldLaunch || result == nil {
+		t.Errorf("expected TUI path, got exitCode=%d shouldLaunch=%v", exitCode, shouldLaunch)
+		return
+	}
+	if !result.cfg.Behavior.AutoCommit {
+		t.Error("expected AutoCommit=true")
+	}
+	if !result.cfg.Behavior.AutoPush {
+		t.Error("expected AutoPush=true")
+	}
+	result.cancel()
+	result.watcher.Stop()
+}
+
+func TestCommitFlagWithoutGenerateFails(t *testing.T) {
+	dir := t.TempDir()
+	origDir, _ := os.Getwd()
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	mkGitDir(t, dir)
+
+	code := run([]string{"-c"})
+	if code != 1 {
+		t.Errorf("expected exit code 1 for -c without -g, got %d", code)
+	}
+}
+
+func TestValidateHeadlessErrorMessages(t *testing.T) {
+	err := validateHeadlessCombination(cli.Actions{Generate: false, Commit: true, Push: false})
+	if err == nil {
+		t.Fatal("expected error for commit without generate")
+	}
+	if !strings.Contains(err.Error(), "--commit (-c)") {
+		t.Errorf("error message should reference --commit (-c), got: %v", err)
+	}
+
+	err = validateHeadlessCombination(cli.Actions{Generate: true, Commit: false, Push: true})
+	if err == nil {
+		t.Fatal("expected error for push+generate without commit")
+	}
+	if !strings.Contains(err.Error(), "--push (-p)") {
+		t.Errorf("error message should reference --push (-p), got: %v", err)
 	}
 }

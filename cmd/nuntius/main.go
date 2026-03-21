@@ -186,7 +186,7 @@ func runDefault(args []string) int {
 	// Detect headless mode by checking whether any action flag was explicitly
 	// set on the command line. This is intentionally NOT based on config values
 	// so that config.toml auto_commit=true does not trigger headless mode.
-	isHeadless := flags.Changed("generate") || flags.Changed("auto-commit") || flags.Changed("auto-push")
+	isHeadless := flags.Changed("generate") || flags.Changed("commit") || flags.Changed("push")
 
 	jsonMode, _ := flags.GetBool("json")
 
@@ -234,23 +234,15 @@ func runDefault(args []string) int {
 		return 1
 	}
 
-	// Merge CLI flags.
+	// Merge CLI flags — headless path only uses provider/model overrides.
+	// TUI auto-behavior flags (--auto-commit, --auto-push) are intentionally
+	// ignored in headless mode.
 	agent := resolveAgentFlag(flags)
 	model, _ := flags.GetString("model")
 	overrides := config.FlagOverrides{
 		Provider: agent,
 		Model:    model,
 	}
-	flags.Visit(func(f *pflag.Flag) {
-		switch f.Name {
-		case "auto-commit":
-			v, _ := flags.GetBool("auto-commit")
-			overrides.AutoCommit = &v
-		case "auto-push":
-			v, _ := flags.GetBool("auto-push")
-			overrides.AutoPush = &v
-		}
-	})
 	config.MergeFlags(&cfg, overrides)
 
 	// Validate current directory is a git repo.
@@ -260,8 +252,8 @@ func runDefault(args []string) int {
 	}
 
 	generate, _ := flags.GetBool("generate")
-	autoCommit, _ := flags.GetBool("auto-commit")
-	autoPush, _ := flags.GetBool("auto-push")
+	commit, _ := flags.GetBool("commit")
+	push, _ := flags.GetBool("push")
 	diffFrom, _ := flags.GetString("diff-from")
 
 	diffSrc, err := parseDiffFrom(diffFrom)
@@ -272,8 +264,8 @@ func runDefault(args []string) int {
 
 	actions := cli.Actions{
 		Generate:   generate,
-		Commit:     autoCommit,
-		Push:       autoPush,
+		Commit:     commit,
+		Push:       push,
 		DiffSource: diffSrc,
 	}
 
@@ -370,10 +362,10 @@ func launchTUI(args []string) int {
 // validateHeadlessCombination checks that the flag combination is valid.
 func validateHeadlessCombination(a cli.Actions) error {
 	if a.Commit && !a.Generate {
-		return fmt.Errorf("--auto-commit (-c) requires --generate (-g)")
+		return fmt.Errorf("--commit (-c) requires --generate (-g)")
 	}
 	if a.Push && a.Generate && !a.Commit {
-		return fmt.Errorf("--auto-push (-p) requires --auto-commit (-c) when used with --generate (-g)")
+		return fmt.Errorf("--push (-p) requires --commit (-c) when used with --generate (-g)")
 	}
 	return nil
 }
@@ -408,10 +400,14 @@ func newFlagSet(output io.Writer) *pflag.FlagSet {
 
 	flags.String("model", "", "AI model override")
 
-	// Headless action flags — also control TUI auto-behavior when set via config.
+	// Headless action flags — trigger non-interactive execution.
 	flags.BoolP("generate", "g", false, "Generate commit message and print to stdout")
-	flags.BoolP("auto-commit", "c", false, "Stage all and commit with generated message")
-	flags.BoolP("auto-push", "p", false, "Push after commit (sets upstream for new branches)")
+	flags.BoolP("commit", "c", false, "Stage all and commit with generated message (headless)")
+	flags.BoolP("push", "p", false, "Push after commit or push unpushed commits (headless)")
+
+	// TUI auto-behavior flags — long-form only (no shorthand), launch TUI with behavior pre-enabled.
+	flags.Bool("auto-commit", false, "Enable auto-commit in TUI mode (no shorthand)")
+	flags.Bool("auto-push", false, "Enable auto-push in TUI mode (no shorthand)")
 
 	flags.Bool("force-push", false, "Use --force-with-lease when pushing (no short alias)")
 	flags.String("diff-from", "auto", "Source of diff for message generation (auto, staged, stdin)")
@@ -425,14 +421,15 @@ func newFlagSet(output io.Writer) *pflag.FlagSet {
 		_, _ = fmt.Fprintf(flags.Output(), "Flags:\n")
 		flags.PrintDefaults()
 		_, _ = fmt.Fprintf(flags.Output(), "\nExamples:\n")
-		_, _ = fmt.Fprintf(flags.Output(), "  nuntius              Launch interactive TUI\n")
-		_, _ = fmt.Fprintf(flags.Output(), "  nuntius --setup      Re-run the onboarding wizard\n")
-		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -g           Generate message and print to stdout\n")
-		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -gc          Generate and commit\n")
-		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -gcp         Generate, commit, and push\n")
-		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -p           Push existing unpushed commits\n")
-		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -gcp --json  Generate, commit, push, and output JSON\n")
-		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -g --diff-from=staged  Generate from staged changes only\n")
+		_, _ = fmt.Fprintf(flags.Output(), "  nuntius                    Launch interactive TUI\n")
+		_, _ = fmt.Fprintf(flags.Output(), "  nuntius --auto-commit      Launch TUI with auto-commit enabled\n")
+		_, _ = fmt.Fprintf(flags.Output(), "  nuntius --setup            Re-run the onboarding wizard\n")
+		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -g                 Generate message and print to stdout\n")
+		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -gc                Generate and commit\n")
+		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -gcp               Generate, commit, and push\n")
+		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -p                 Push existing unpushed commits\n")
+		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -gcp --json        Generate, commit, push, and output JSON\n")
+		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -g --diff-from=staged   Generate from staged changes only\n")
 		_, _ = fmt.Fprintf(flags.Output(), "  git diff HEAD~3..HEAD | nuntius -g --diff-from=stdin  Pipe a diff\n")
 		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -g | git commit -F -   Pipe message to git commit\n")
 	}
