@@ -108,11 +108,11 @@ func CheckForUpdate(currentVersion, buildDate string) *VersionCheckResult {
 }
 
 func defaultVersionCachePath() string {
-	cacheDir, err := os.UserCacheDir()
-	if err != nil {
+	dir := NuntiusDir()
+	if dir == "" {
 		return ""
 	}
-	return filepath.Join(cacheDir, "nuntius", "version-check.json")
+	return filepath.Join(dir, "version-check.json")
 }
 
 func readCache(path string) (versionCache, bool) {

@@ -435,3 +435,50 @@ func TestRunMCP_Routing(t *testing.T) {
 		t.Errorf("expected exit 0 routing to runMCP --version, got %d", code)
 	}
 }
+
+func TestSetupFlagIsRegistered(t *testing.T) {
+	var buf bytes.Buffer
+	flags := newFlagSet(&buf)
+	f := flags.Lookup("setup")
+	if f == nil {
+		t.Fatal("expected --setup flag to be registered")
+	}
+}
+
+func TestSetupMutualExclusionWithGenerate(t *testing.T) {
+	code := run([]string{"--setup", "-g"})
+	if code != 1 {
+		t.Errorf("expected exit code 1 for --setup with -g, got %d", code)
+	}
+}
+
+func TestSetupMutualExclusionWithAutoCommit(t *testing.T) {
+	code := run([]string{"--setup", "-c"})
+	if code != 1 {
+		t.Errorf("expected exit code 1 for --setup with -c, got %d", code)
+	}
+}
+
+func TestSetupMutualExclusionWithJson(t *testing.T) {
+	// --setup + --json + -g → setup exclusion fires first (isHeadless=true, jsonMode=true).
+	code := run([]string{"--setup", "--json", "-g"})
+	if code != 1 {
+		t.Errorf("expected exit code 1 for --setup with --json and -g, got %d", code)
+	}
+}
+
+func TestSetupMutualExclusionWithMCP(t *testing.T) {
+	code := run([]string{"mcp", "--setup"})
+	if code != 1 {
+		t.Errorf("expected exit code 1 for mcp + --setup, got %d", code)
+	}
+}
+
+func TestSetupInHelpOutput(t *testing.T) {
+	var buf bytes.Buffer
+	flags := newFlagSet(&buf)
+	flags.Usage()
+	if !strings.Contains(buf.String(), "--setup") {
+		t.Error("expected --setup to appear in help output")
+	}
+}

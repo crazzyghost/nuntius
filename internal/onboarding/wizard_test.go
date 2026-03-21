@@ -1,0 +1,307 @@
+package onboarding
+
+import (
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
+
+func sendKey(t *testing.T, w Wizard, key string) Wizard {
+	t.Helper()
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(key)}
+	switch key {
+	case "enter":
+		msg = tea.KeyMsg{Type: tea.KeyEnter}
+	case "up":
+		msg = tea.KeyMsg{Type: tea.KeyUp}
+	case "down":
+		msg = tea.KeyMsg{Type: tea.KeyDown}
+	case "left":
+		msg = tea.KeyMsg{Type: tea.KeyLeft}
+	case "backspace":
+		msg = tea.KeyMsg{Type: tea.KeyBackspace}
+	case "esc":
+		msg = tea.KeyMsg{Type: tea.KeyEsc}
+	case "ctrl+c":
+		msg = tea.KeyMsg{Type: tea.KeyCtrlC}
+	}
+	model, _ := w.Update(msg)
+	return model.(Wizard)
+}
+
+func TestWizardInitialStep(t *testing.T) {
+	w := NewWizard()
+	if w.currentStep != 0 {
+		t.Errorf("expected initial step 0, got %d", w.currentStep)
+	}
+	if w.Done() {
+		t.Error("expected Done() = false initially")
+	}
+	if w.Skipped() {
+		t.Error("expected Skipped() = false initially")
+	}
+}
+
+func TestWizardStepForward(t *testing.T) {
+	w := NewWizard()
+	for i := 0; i < totalSteps-1; i++ {
+		w = sendKey(t, w, "enter")
+		if w.currentStep != i+1 {
+			t.Errorf("after enter on step %d: expected step %d, got %d", i, i+1, w.currentStep)
+		}
+	}
+}
+
+func TestWizardStepBackward(t *testing.T) {
+	w := NewWizard()
+	w = sendKey(t, w, "enter")
+	w = sendKey(t, w, "enter")
+	if w.currentStep != 2 {
+		t.Fatalf("expected step 2, got %d", w.currentStep)
+	}
+	w = sendKey(t, w, "backspace")
+	if w.currentStep != 1 {
+		t.Errorf("expected step 1 after backspace, got %d", w.currentStep)
+	}
+	w = sendKey(t, w, "left")
+	if w.currentStep != 0 {
+		t.Errorf("expected step 0 after left, got %d", w.currentStep)
+	}
+	w = sendKey(t, w, "backspace")
+	if w.currentStep != 0 {
+		t.Errorf("expected step 0 stays at 0, got %d", w.currentStep)
+	}
+}
+
+func TestWizardSkipEsc(t *testing.T) {
+	w := NewWizard()
+	w = sendKey(t, w, "esc")
+	if !w.Skipped() {
+		t.Error("expected Skipped() = true after esc")
+	}
+	if w.Done() {
+		t.Error("expected Done() = false after esc")
+	}
+}
+
+func TestWizardSkipS(t *testing.T) {
+	w := NewWizard()
+	w = sendKey(t, w, "s")
+	if !w.Skipped() {
+		t.Error("expected Skipped() = true after 's'")
+	}
+}
+
+func TestWizardSkipCtrlC(t *testing.T) {
+	w := NewWizard()
+	w = sendKey(t, w, "ctrl+c")
+	if !w.Skipped() {
+		t.Error("expected Skipped() = true after ctrl+c")
+	}
+}
+
+func TestWizardSkipAtAnyStep(t *testing.T) {
+	for step := 0; step < totalSteps; step++ {
+		w := NewWizard()
+		for i := 0; i < step; i++ {
+			w = sendKey(t, w, "enter")
+		}
+		w = sendKey(t, w, "esc")
+		if !w.Skipped() {
+			t.Errorf("expected Skipped() = true at step %d", step)
+		}
+	}
+}
+
+func TestWizardCompletionDone(t *testing.T) {
+	w := NewWizard()
+	for i := 0; i < totalSteps; i++ {
+		w = sendKey(t, w, "enter")
+	}
+	if !w.Done() {
+		t.Error("expected Done() = true after all steps")
+	}
+	if w.Skipped() {
+		t.Error("expected Skipped() = false after completion")
+	}
+}
+
+func TestWizardDefaultResult(t *testing.T) {
+	w := NewWizard()
+	for i := 0; i < totalSteps; i++ {
+		w = sendKey(t, w, "enter")
+	}
+	r := w.Result()
+	if r.Provider != "claude" {
+		t.Errorf("expected provider %q, got %q", "claude", r.Provider)
+	}
+	if r.Model != "claude-haiku-4.5" {
+		t.Errorf("expected model %q, got %q", "claude-haiku-4.5", r.Model)
+	}
+	if r.AutoCommit {
+		t.Error("expected AutoCommit = false (default)")
+	}
+	if r.AutoPush {
+		t.Error("expected AutoPush = false (default)")
+	}
+	if !r.AutoUpdateCheck {
+		t.Error("expected AutoUpdateCheck = true (default)")
+	}
+}
+
+func TestWizardCliModeSuffix(t *testing.T) {
+	w := NewWizard()
+	w = sendKey(t, w, "enter")
+	w = sendKey(t, w, "enter")
+	w = sendKey(t, w, "up")
+	w = sendKey(t, w, "enter")
+	for i := 3; i <= 5; i++ {
+		w = sendKey(t, w, "enter")
+	}
+
+	r := w.Result()
+	if r.Provider != "claude-cli" {
+		t.Errorf("expected provider %q, got %q", "claude-cli", r.Provider)
+	}
+}
+
+func TestWizardProviderChangesModelList(t *testing.T) {
+	w := NewWizard()
+	w = sendKey(t, w, "down")
+	w = sendKey(t, w, "down")
+	w = sendKey(t, w, "down")
+	w = sendKey(t, w, "enter")
+	opts := w.currentOptions()
+	if len(opts) != 2 {
+		t.Fatalf("expected 2 gemini models, got %d", len(opts))
+	}
+	if opts[0].Value != "gemini-2.5-flash" {
+		t.Errorf("expected first model %q, got %q", "gemini-2.5-flash", opts[0].Value)
+	}
+	if opts[1].Value != "gemini-2.5-pro" {
+		t.Errorf("expected second model %q, got %q", "gemini-2.5-pro", opts[1].Value)
+	}
+}
+
+func TestWizardOllamaUsesTextInput(t *testing.T) {
+	w := NewWizard()
+	for i := 0; i < 4; i++ {
+		w = sendKey(t, w, "down")
+	}
+	w = sendKey(t, w, "enter")
+	if !w.isOllamaModelStep() {
+		t.Error("expected ollama model step")
+	}
+	if opts := w.currentOptions(); opts != nil {
+		t.Errorf("expected nil options on ollama model step, got %v", opts)
+	}
+}
+
+func TestWizardOllamaResultIncludesTypedModel(t *testing.T) {
+	w := NewWizard()
+	for i := 0; i < 4; i++ {
+		w = sendKey(t, w, "down")
+	}
+	w = sendKey(t, w, "enter")
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("llama3.2")}
+	model, _ := w.Update(msg)
+	w = model.(Wizard)
+	w = sendKey(t, w, "enter")
+	w = sendKey(t, w, "enter")
+	w = sendKey(t, w, "enter")
+	w = sendKey(t, w, "enter")
+
+	r := w.Result()
+	if r.Provider != "ollama" {
+		t.Errorf("expected provider %q, got %q", "ollama", r.Provider)
+	}
+	if r.Model != "llama3.2" {
+		t.Errorf("expected model %q, got %q", "llama3.2", r.Model)
+	}
+}
+
+func TestWizardAllOptionsSortedAlphabetically(t *testing.T) {
+	t.Run("providers", func(t *testing.T) {
+		labels := make([]string, len(ProviderOptions))
+		for i, o := range ProviderOptions {
+			labels[i] = o.Label
+		}
+		if !sort.StringsAreSorted(labels) {
+			t.Errorf("provider options not sorted: %v", labels)
+		}
+	})
+
+	for provider, models := range ModelOptions {
+		provider, models := provider, models
+		t.Run("models/"+provider, func(t *testing.T) {
+			labels := make([]string, len(models))
+			for i, o := range models {
+				labels[i] = o.Label
+			}
+			if !sort.StringsAreSorted(labels) {
+				t.Errorf("models for %s not sorted: %v", provider, labels)
+			}
+		})
+	}
+}
+
+func TestWriteConfigToPath(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+
+	result := WizardResult{
+		Provider:        "claude",
+		Model:           "claude-haiku-4.5",
+		AutoCommit:      false,
+		AutoPush:        false,
+		AutoUpdateCheck: true,
+	}
+	if err := writeConfigToPath(path, result); err != nil {
+		t.Fatalf("writeConfigToPath() error: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading config: %v", err)
+	}
+	content := string(data)
+	checks := []string{
+		`provider = "claude"`,
+		`model = "claude-haiku-4.5"`,
+		`auto_commit = false`,
+		`auto_push = false`,
+		`auto_update_check = true`,
+	}
+	for _, check := range checks {
+		if !strings.Contains(content, check) {
+			t.Errorf("config missing %q; got:\n%s", check, content)
+		}
+	}
+}
+
+func TestWriteConfigCliProvider(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+
+	result := WizardResult{
+		Provider:        "copilot-cli",
+		Model:           "gpt-4o-mini",
+		AutoCommit:      false,
+		AutoPush:        false,
+		AutoUpdateCheck: true,
+	}
+	if err := writeConfigToPath(path, result); err != nil {
+		t.Fatalf("writeConfigToPath() error: %v", err)
+	}
+
+	data, _ := os.ReadFile(path)
+	if !strings.Contains(string(data), `provider = "copilot-cli"`) {
+		t.Errorf("expected copilot-cli in config, got:\n%s", string(data))
+	}
+}

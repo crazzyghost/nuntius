@@ -10,11 +10,24 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+// NuntiusDir returns the path to the ~/.nuntius/ directory, creating it if absent.
+// Returns empty string when $HOME cannot be determined (containers, CI).
+func NuntiusDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	dir := filepath.Join(home, ".nuntius")
+	_ = os.MkdirAll(dir, 0o755)
+	return dir
+}
+
 // Load reads configuration from TOML files and environment variables,
 // merging them with the following priority (highest first):
 //
-//	CLI flags (handled externally via MergeFlags) → env vars → repo .nuntius.toml → global config → defaults
+// CLI flags (handled externally via MergeFlags) → env vars → repo .nuntius.toml → global config → defaults
 func Load() (Config, error) {
+	migrateConfigFiles()
 	cfg := DefaultConfig()
 
 	// Try repo-level config first
@@ -51,14 +64,62 @@ func loadTOML(path string, cfg *Config) error {
 	return nil
 }
 
-// globalConfigPath returns the path to the global config file,
-// or an empty string if the config directory cannot be determined.
+// globalConfigPath returns the path to the global config file (~/.nuntius/config.toml),
+// or an empty string if the home directory cannot be determined.
 func globalConfigPath() string {
-	configDir, err := os.UserConfigDir()
-	if err != nil {
+	dir := NuntiusDir()
+	if dir == "" {
 		return ""
 	}
-	return filepath.Join(configDir, "nuntius", "config.toml")
+	return filepath.Join(dir, "config.toml")
+}
+
+// migrateConfigFiles migrates legacy config and cache files to ~/.nuntius/.
+// Migration is a best-effort copy — originals are preserved.
+func migrateConfigFiles() {
+	dir := NuntiusDir()
+	if dir == "" {
+		return
+	}
+
+	// Migrate global config: ~/.config/nuntius/config.toml → ~/.nuntius/config.toml
+	newConfig := filepath.Join(dir, "config.toml")
+	if !fileExists(newConfig) {
+		if oldConfigDir, err := os.UserConfigDir(); err == nil {
+			oldConfig := filepath.Join(oldConfigDir, "nuntius", "config.toml")
+			if fileExists(oldConfig) {
+				if err := copyFile(oldConfig, newConfig); err == nil {
+					fmt.Fprintf(os.Stderr, "nuntius: migrated config from %s to %s\n", oldConfig, newConfig)
+				}
+			}
+		}
+	}
+
+	// Migrate version cache: ~/.cache/nuntius/version-check.json → ~/.nuntius/version-check.json
+	newCache := filepath.Join(dir, "version-check.json")
+	if !fileExists(newCache) {
+		if oldCacheDir, err := os.UserCacheDir(); err == nil {
+			oldCache := filepath.Join(oldCacheDir, "nuntius", "version-check.json")
+			if fileExists(oldCache) {
+				_ = copyFile(oldCache, newCache)
+			}
+		}
+	}
+}
+
+// copyFile copies src to dst, creating parent directories as needed.
+func copyFile(src, dst string) error {
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return fmt.Errorf("reading %s: %w", src, err)
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return fmt.Errorf("creating directory for %s: %w", dst, err)
+	}
+	if err := os.WriteFile(dst, data, 0o644); err != nil {
+		return fmt.Errorf("writing %s: %w", dst, err)
+	}
+	return nil
 }
 
 // applyEnvOverrides reads NUNTIUS_* environment variables and overrides
@@ -94,6 +155,9 @@ func applyEnvOverrides(cfg *Config) {
 	}
 	if v := os.Getenv("NUNTIUS_BEHAVIOR_FORCE_PUSH"); v != "" {
 		cfg.Behavior.ForcePush = parseBool(v)
+	}
+	if v := os.Getenv("NUNTIUS_BEHAVIOR_AUTO_UPDATE_CHECK"); v != "" {
+		cfg.Behavior.AutoUpdateCheck = parseBool(v)
 	}
 
 	// Conventions section

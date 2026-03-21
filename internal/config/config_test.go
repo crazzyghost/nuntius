@@ -44,3 +44,10 @@ func TestDefaultConfig(t *testing.T) {
 		t.Errorf("expected Conventions.CustomTemplate = %q, got %q", "", cfg.Conventions.CustomTemplate)
 	}
 }
+
+func TestDefaultConfigAutoUpdateCheck(t *testing.T) {
+	cfg := DefaultConfig()
+	if !cfg.Behavior.AutoUpdateCheck {
+		t.Error("expected Behavior.AutoUpdateCheck = true (default)")
+	}
+}

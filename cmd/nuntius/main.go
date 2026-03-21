@@ -14,6 +14,7 @@ import (
 	"github.com/crazzyghost/nuntius/internal/config"
 	"github.com/crazzyghost/nuntius/internal/engine"
 	"github.com/crazzyghost/nuntius/internal/git"
+	"github.com/crazzyghost/nuntius/internal/onboarding"
 	"github.com/crazzyghost/nuntius/internal/tui"
 )
 
@@ -150,6 +151,13 @@ func setup(args []string) (*setupResult, int, bool) {
 func run(args []string) int {
 	// Check for subcommands before flag parsing.
 	if len(args) > 0 && args[0] == "mcp" {
+		// --setup is not valid inside the mcp subcommand.
+		for _, a := range args[1:] {
+			if a == "--setup" {
+				fmt.Fprintln(os.Stderr, "Error: cannot use --setup with action flags or mcp subcommand")
+				return 1
+			}
+		}
 		return runMCP(args[1:])
 	}
 	return runDefault(args)
@@ -193,7 +201,26 @@ func runDefault(args []string) int {
 		return 1
 	}
 
+	setupFlag, _ := flags.GetBool("setup")
+
+	// --setup is mutually exclusive with action flags, --json, and mcp subcommand.
+	if setupFlag && (isHeadless || jsonMode) {
+		fmt.Fprintln(os.Stderr, "Error: cannot use --setup with action flags or mcp subcommand")
+		return 1
+	}
+
 	if !isHeadless {
+		// Run onboarding wizard on first launch or when --setup is requested.
+		// Only in TUI (non-headless) mode; only when stdin is a terminal (no TTY = no wizard).
+		// Auto-onboarding is also gated on being inside a git repo — nuntius is only useful there
+		// and this prevents the wizard from blocking tests that run outside a repo.
+		if setupFlag || (config.ShouldOnboard() && isTerminal(os.Stdin) && isGitRepo()) {
+			if err := runOnboarding(); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: onboarding error: %v\n", err)
+				// Non-fatal — continue to TUI with defaults.
+			}
+		}
+
 		// TUI path — delegate to the full setup function.
 		return launchTUI(args)
 	}
@@ -294,6 +321,35 @@ func runDefault(args []string) int {
 	return result.ExitCode()
 }
 
+// runOnboarding launches the interactive onboarding wizard and persists the
+// result. Any error is returned to the caller; the caller decides whether to
+// treat it as fatal.
+func runOnboarding() error {
+	wizard := onboarding.NewWizard()
+	p := tea.NewProgram(wizard, tea.WithAltScreen())
+	finalModel, err := p.Run()
+	if err != nil {
+		_ = config.MarkOnboardingSkipped()
+		return err
+	}
+	w, ok := finalModel.(onboarding.Wizard)
+	if !ok {
+		_ = config.MarkOnboardingSkipped()
+		return fmt.Errorf("unexpected wizard model type")
+	}
+	if w.Skipped() {
+		return config.MarkOnboardingSkipped()
+	}
+	if w.Done() {
+		if err := onboarding.WriteConfig(w.Result()); err != nil {
+			return fmt.Errorf("writing config: %w", err)
+		}
+		return config.MarkOnboardingCompleted()
+	}
+	// Neither done nor skipped (e.g. Ctrl+C before completion).
+	return config.MarkOnboardingSkipped()
+}
+
 // launchTUI runs the Bubble Tea TUI and returns an exit code.
 func launchTUI(args []string) int {
 	result, exitCode, shouldLaunch := setup(args)
@@ -361,6 +417,7 @@ func newFlagSet(output io.Writer) *pflag.FlagSet {
 	flags.String("diff-from", "auto", "Source of diff for message generation (auto, staged, stdin)")
 	flags.BoolP("json", "j", false, "Emit all output as structured JSON to stdout (requires -g, -c, or -p)")
 	flags.Bool("no-update-check", false, "Disable startup version check")
+	flags.Bool("setup", false, "Re-run the onboarding wizard (creates or overwrites ~/.nuntius/config.toml)")
 
 	flags.Usage = func() {
 		_, _ = fmt.Fprintf(flags.Output(), "Usage: nuntius [flags]\n\n")
@@ -369,6 +426,7 @@ func newFlagSet(output io.Writer) *pflag.FlagSet {
 		flags.PrintDefaults()
 		_, _ = fmt.Fprintf(flags.Output(), "\nExamples:\n")
 		_, _ = fmt.Fprintf(flags.Output(), "  nuntius              Launch interactive TUI\n")
+		_, _ = fmt.Fprintf(flags.Output(), "  nuntius --setup      Re-run the onboarding wizard\n")
 		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -g           Generate message and print to stdout\n")
 		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -gc          Generate and commit\n")
 		_, _ = fmt.Fprintf(flags.Output(), "  nuntius -gcp         Generate, commit, and push\n")

@@ -42,6 +42,8 @@ type BehaviorConfig struct {
 	AutoPush bool `toml:"auto_push"`
 	// ForcePush uses --force-with-lease when pushing.
 	ForcePush bool `toml:"force_push"`
+	// AutoUpdateCheck checks for a newer version of nuntius on startup. Default: true.
+	AutoUpdateCheck bool `toml:"auto_update_check"`
 }
 
 // ConventionsConfig controls commit message convention detection and formatting.
@@ -62,9 +64,10 @@ func DefaultConfig() Config {
 			OllamaURL: "http://localhost:11434",
 		},
 		Behavior: BehaviorConfig{
-			AutoCommit: false,
-			AutoPush:   false,
-			ForcePush:  false,
+			AutoCommit:      false,
+			AutoPush:        false,
+			ForcePush:       false,
+			AutoUpdateCheck: true,
 		},
 		Conventions: ConventionsConfig{
 			Style:          "conventional",

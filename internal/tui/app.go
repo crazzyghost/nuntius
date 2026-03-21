@@ -106,8 +106,8 @@ func (m AppModel) Init() tea.Cmd {
 		cmds = append(cmds, waitForFileChange(m.watcher))
 	}
 
-	// Non-blocking version check.
-	if !m.noUpdateCheck && m.version != "" && m.version != "dev" {
+	// Non-blocking version check — skipped when disabled by flag, config, or env var.
+	if !m.noUpdateCheck && m.config.Behavior.AutoUpdateCheck && m.version != "" && m.version != "dev" {
 		cmds = append(cmds, checkVersionCmd(m.version, m.buildDate))
 	}
 

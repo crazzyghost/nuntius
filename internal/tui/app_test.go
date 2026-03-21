@@ -431,3 +431,22 @@ func TestDefaultModelLabel(t *testing.T) {
 		})
 	}
 }
+
+func TestAutoUpdateCheckDisabledInConfig(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Behavior.AutoUpdateCheck = false
+	app := NewApp(cfg).WithVersion("1.0.0", "2024-01-01T00:00:00Z")
+	// Init() should not include checkVersionCmd when AutoUpdateCheck = false.
+	// We cannot inspect individual commands, but we verify no panic and non-nil result.
+	cmd := app.Init()
+	if cmd == nil {
+		t.Error("Init() should never return nil")
+	}
+}
+
+func TestAutoUpdateCheckEnabledByDefault(t *testing.T) {
+	cfg := config.DefaultConfig()
+	if !cfg.Behavior.AutoUpdateCheck {
+		t.Error("expected AutoUpdateCheck = true by default")
+	}
+}
