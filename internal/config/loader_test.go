@@ -80,7 +80,7 @@ style = "gitmoji"
 		t.Errorf("expected style %q, got %q", "gitmoji", cfg.Conventions.Style)
 	}
 	// Non-specified fields should retain defaults
-	if cfg.AI.APIKeyEnv != "ANTHROPIC_API_KEY" {
+	if cfg.AI.APIKeyEnv != "" {
 		t.Errorf("expected default api_key_env, got %q", cfg.AI.APIKeyEnv)
 	}
 }

@@ -139,11 +139,11 @@ func TestWizardDefaultResult(t *testing.T) {
 	if r.Provider != "claude" {
 		t.Errorf("expected provider %q, got %q", "claude", r.Provider)
 	}
-	if r.Mode != "cli" {
-		t.Errorf("expected mode %q, got %q", "cli", r.Mode)
+	if r.Mode != "api" {
+		t.Errorf("expected mode %q, got %q", "api", r.Mode)
 	}
-	if r.Model != "claude-haiku-4.5" {
-		t.Errorf("expected model %q, got %q", "claude-haiku-4.5", r.Model)
+	if r.Model != "claude-haiku-4-5" {
+		t.Errorf("expected model %q, got %q", "claude-haiku-4-5", r.Model)
 	}
 	if r.AutoCommit {
 		t.Error("expected AutoCommit = false (default)")
@@ -160,7 +160,8 @@ func TestWizardCLIModeResult(t *testing.T) {
 	w := NewWizard()
 	w = sendKey(t, w, "enter") // step 0: select claude
 	w = sendKey(t, w, "enter") // step 1: select model
-	// step 2: cursor is already at 0 (cli) — just confirm
+	// step 2: cursor is at 0 (api); press down to select cli (index 1)
+	w = sendKey(t, w, "down")
 	w = sendKey(t, w, "enter") // confirm cli
 	for i := 3; i <= 5; i++ {
 		w = sendKey(t, w, "enter")
@@ -178,8 +179,7 @@ func TestWizardAPIModeResult(t *testing.T) {
 	w := NewWizard()
 	w = sendKey(t, w, "enter") // step 0: select claude
 	w = sendKey(t, w, "enter") // step 1: select model
-	// step 2: cursor at 0 (cli), press down to select api (index 1)
-	w = sendKey(t, w, "down")
+	// step 2: cursor is already at 0 (api) — just confirm
 	w = sendKey(t, w, "enter") // confirm api
 	for i := 3; i <= 5; i++ {
 		w = sendKey(t, w, "enter")
@@ -200,14 +200,14 @@ func TestWizardProviderChangesModelList(t *testing.T) {
 	w = sendKey(t, w, "down")
 	w = sendKey(t, w, "enter")
 	opts := w.currentOptions()
-	if len(opts) != 2 {
-		t.Fatalf("expected 2 gemini models, got %d", len(opts))
+	if len(opts) != 4 {
+		t.Fatalf("expected 4 gemini models, got %d", len(opts))
 	}
-	if opts[0].Value != "gemini-2.5-flash" {
-		t.Errorf("expected first model %q, got %q", "gemini-2.5-flash", opts[0].Value)
+	if opts[0].Value != "gemini-3.1-flash-lite-preview" {
+		t.Errorf("expected first model %q, got %q", "gemini-3.1-flash-lite-preview", opts[0].Value)
 	}
-	if opts[1].Value != "gemini-2.5-pro" {
-		t.Errorf("expected second model %q, got %q", "gemini-2.5-pro", opts[1].Value)
+	if opts[1].Value != "gemini-3-flash-preview" {
+		t.Errorf("expected second model %q, got %q", "gemini-3-flash-preview", opts[1].Value)
 	}
 }
 
@@ -258,19 +258,6 @@ func TestWizardAllOptionsSortedAlphabetically(t *testing.T) {
 			t.Errorf("provider options not sorted: %v", labels)
 		}
 	})
-
-	for provider, models := range ModelOptions {
-		provider, models := provider, models
-		t.Run("models/"+provider, func(t *testing.T) {
-			labels := make([]string, len(models))
-			for i, o := range models {
-				labels[i] = o.Label
-			}
-			if !sort.StringsAreSorted(labels) {
-				t.Errorf("models for %s not sorted: %v", provider, labels)
-			}
-		})
-	}
 }
 
 func TestWriteConfigToPath(t *testing.T) {

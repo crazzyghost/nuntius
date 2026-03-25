@@ -6,14 +6,14 @@ func TestDefaultConfig(t *testing.T) {
 	cfg := DefaultConfig()
 
 	// AI defaults
-	if cfg.AI.Provider != "claude" {
-		t.Errorf("expected AI.Provider = %q, got %q", "claude", cfg.AI.Provider)
+	if cfg.AI.Provider != "" {
+		t.Errorf("expected AI.Provider = %q, got %q", "", cfg.AI.Provider)
 	}
 	if cfg.AI.Model != "" {
 		t.Errorf("expected AI.Model = %q, got %q", "", cfg.AI.Model)
 	}
-	if cfg.AI.APIKeyEnv != "ANTHROPIC_API_KEY" {
-		t.Errorf("expected AI.APIKeyEnv = %q, got %q", "ANTHROPIC_API_KEY", cfg.AI.APIKeyEnv)
+	if cfg.AI.APIKeyEnv != "" {
+		t.Errorf("expected AI.APIKeyEnv = %q, got %q", "", cfg.AI.APIKeyEnv)
 	}
 	if cfg.AI.OllamaURL != "http://localhost:11434" {
 		t.Errorf("expected AI.OllamaURL = %q, got %q", "http://localhost:11434", cfg.AI.OllamaURL)
