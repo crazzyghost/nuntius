@@ -106,6 +106,9 @@ func (w Wizard) currentOptions() []Option {
 		provider := ProviderOptions[w.cursors[0]].Value
 		return ModelOptions[provider]
 	case 2:
+		if ProviderOptions[w.cursors[0]].Value == "copilot" {
+			return ModeOptions[1:2] // copilot only supports cli mode
+		}
 		return ModeOptions
 	case 3:
 		return AutoCommitOptions

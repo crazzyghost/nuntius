@@ -53,8 +53,8 @@ var ModelOptions = map[string][]Option{
 
 // ModeOptions lists connection modes. Default is "cli" (index 0).
 var ModeOptions = []Option{
-	{Label: "cli — uses locally installed CLI tool (e.g. gh, claude)", Value: "cli"},
 	{Label: "api — connects directly via API (requires API key)", Value: "api"},
+	{Label: "cli — uses locally installed CLI tool (e.g. copilot, claude, gemini)", Value: "cli"},
 }
 
 // defaultModeIndex returns the default cursor index for the mode selection step.
