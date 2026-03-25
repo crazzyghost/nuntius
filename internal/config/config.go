@@ -60,9 +60,9 @@ type ConventionsConfig struct {
 func DefaultConfig() Config {
 	return Config{
 		AI: AIConfig{
-			Provider:  "claude",
+			Provider:  "",
 			Model:     "",
-			APIKeyEnv: "ANTHROPIC_API_KEY",
+			APIKeyEnv: "",
 			OllamaURL: "http://localhost:11434",
 		},
 		Behavior: BehaviorConfig{
