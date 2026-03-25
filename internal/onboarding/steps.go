@@ -30,20 +30,24 @@ var ProviderOptions = []Option{
 // Ollama is not listed here — it uses a free-text input.
 var ModelOptions = map[string][]Option{
 	"claude": {
-		{Label: "claude-haiku-4.5", Value: "claude-haiku-4.5"},
-		{Label: "claude-sonnet-4", Value: "claude-sonnet-4"},
+		{Label: "Claude Haiku 4.5", Value: "claude-haiku-4-5"},
 	},
 	"codex": {
-		{Label: "gpt-4o-mini", Value: "gpt-4o-mini"},
-		{Label: "o3-mini", Value: "o3-mini"},
+		{Label: "GPT-5.4-Mini", Value: "gpt-5.4-mini"},
+		{Label: "GPT-5.1-Codex-Mini", Value: "gpt-5-codex"},
+		{Label: "GPT-5.3-Codex-Spark", Value: "gpt-5.3-codex-spark"},
 	},
 	"copilot": {
-		{Label: "claude-haiku-4.5", Value: "claude-haiku-4.5"},
-		{Label: "gpt-4o-mini", Value: "gpt-4o-mini"},
+		{Label: "Claude Haiku 4.5", Value: "claude-haiku-4.5"},
+		{Label: "GPT-5.4-Mini", Value: "gpt-5.4-mini"},
+		{Label: "GPT-5.1-Codex-Mini", Value: "GPT-5.1-Codex-Mini"},
+		{Label: "GPT-5 mini", Value: "gpt-5-mini"},
 	},
 	"gemini": {
-		{Label: "gemini-2.5-flash", Value: "gemini-2.5-flash"},
-		{Label: "gemini-2.5-pro", Value: "gemini-2.5-pro"},
+		{Label: "Gemini 3.1 Flash Lite", Value: "gemini-3.1-flash-lite-preview"},
+		{Label: "Gemini 3 Flash", Value: "gemini-3-flash-preview"},
+		{Label: "Gemini 2.5 Flash", Value: "gemini-2.5-flash"},
+		{Label: "Gemini 2.5 Flash Lite", Value: "gemini-2.5-flash-lite"},
 	},
 }
 
@@ -73,6 +77,6 @@ var AutoPushOptions = []Option{
 
 // UpdateCheckOptions lists update-check choices. Default is "on" (index 0).
 var UpdateCheckOptions = []Option{
-	{Label: "on", Value: "true"},
 	{Label: "off", Value: "false"},
+	{Label: "on", Value: "true"},
 }

@@ -45,8 +45,10 @@ func NewWizard() Wizard {
 	w := Wizard{
 		ollamaInput: ti,
 	}
-	// Step 2 (mode): default is cli = index 0.
+	// Step 3 (mode): default is cli = index 0.
 	w.cursors[2] = defaultModeIndex("")
+
+	w.cursors[5] = 1
 	return w
 }
 
