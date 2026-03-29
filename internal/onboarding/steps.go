@@ -47,7 +47,7 @@ var ModelOptions = map[string][]Option{
 	},
 	"codex": {
 		{Label: "GPT-5.4-Mini", Value: "gpt-5.4-mini"},
-		{Label: "GPT-5.1-Codex-Mini", Value: "gpt-5-codex"},
+		{Label: "GPT-5.1-Codex-Mini", Value: "gpt-5-codex-mini"},
 		{Label: "GPT-5.3-Codex-Spark", Value: "gpt-5.3-codex-spark"},
 	},
 	"copilot": {

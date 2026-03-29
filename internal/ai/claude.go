@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	claudeDefaultModel = "claude-3-haiku-20240307"
+	claudeDefaultModel = "claude-haiku-4-5"
 	claudeAPIURL       = "https://api.anthropic.com/v1/messages"
 	claudeAPIVersion   = "2023-06-01"
 )
