@@ -99,6 +99,10 @@ func (m ViewportModel) Update(msg tea.Msg) (ViewportModel, tea.Cmd) {
 		m.updateContent()
 		cmds = append(cmds, m.spinner.Tick) // restart tick chain for push loading state
 
+	case events.ErrorMsg:
+		m.loading = false
+		m.updateContent()
+
 	case spinner.TickMsg:
 		if m.loading {
 			var cmd tea.Cmd

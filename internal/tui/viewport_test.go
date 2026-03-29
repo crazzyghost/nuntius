@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/crazzyghost/nuntius/internal/events"
@@ -180,5 +181,39 @@ func TestRenderFileListWithFiles(t *testing.T) {
 	view := v.View()
 	if view == "" {
 		t.Error("view should not be empty with files")
+	}
+}
+
+func TestViewportErrorMsgStopsLoading(t *testing.T) {
+	v := NewViewport()
+	v.SetSize(80, 24)
+
+	// Start a generate request — spinner should be loading.
+	v, _ = v.Update(events.GenerateRequestedMsg{})
+	if !v.loading {
+		t.Fatal("viewport should be loading after GenerateRequestedMsg")
+	}
+
+	// Simulate an API error — spinner should stop.
+	v, _ = v.Update(events.ErrorMsg{Source: "generate", Err: fmt.Errorf("API error 401")})
+	if v.loading {
+		t.Error("viewport should stop loading after ErrorMsg")
+	}
+}
+
+func TestViewportErrorMsgStopsPushLoading(t *testing.T) {
+	v := NewViewport()
+	v.SetSize(80, 24)
+
+	// Start a push request — spinner should be loading.
+	v, _ = v.Update(events.PushRequestedMsg{})
+	if !v.loading {
+		t.Fatal("viewport should be loading after PushRequestedMsg")
+	}
+
+	// Simulate push error — spinner should stop.
+	v, _ = v.Update(events.ErrorMsg{Source: "push", Err: fmt.Errorf("push rejected")})
+	if v.loading {
+		t.Error("viewport should stop loading after push ErrorMsg")
 	}
 }

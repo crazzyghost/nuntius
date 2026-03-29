@@ -305,9 +305,12 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, vcmd, acmd)
 
 	case events.ErrorMsg:
-		var cmd tea.Cmd
-		m.actionbar, cmd = m.actionbar.Update(msg)
-		cmds = append(cmds, cmd)
+		var actionBarCmd tea.Cmd
+		m.actionbar, actionBarCmd = m.actionbar.Update(msg)
+		cmds = append(cmds, actionBarCmd)
+		var viewportCmd tea.Cmd
+		m.viewport, viewportCmd = m.viewport.Update(msg)
+		cmds = append(cmds, viewportCmd)
 		m.setStatus(formatErrorMsg(msg), statusErr)
 		cmds = append(cmds, scheduleStatusClear())
 
