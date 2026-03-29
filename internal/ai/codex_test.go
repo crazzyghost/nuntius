@@ -87,6 +87,7 @@ func TestCodex_GenerateCommitMessage_APIError(t *testing.T) {
 }
 
 func TestCodex_MissingAPIKey(t *testing.T) {
+	t.Setenv("NUNTIUS_AI_API_KEY", "")
 	cfg := config.AIConfig{Provider: "codex"}
 	_, err := NewCodex(cfg)
 	if err == nil {

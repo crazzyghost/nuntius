@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	codexDefaultModel = "gemini-3.1-flash-lite-preview"
+	codexDefaultModel = "gpt-5.4-mini"
 	codexAPIURL       = "https://api.openai.com/v1/chat/completions"
 )
 

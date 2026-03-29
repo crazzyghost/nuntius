@@ -57,9 +57,7 @@ func TestResolveAPIKey(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.envValue != "" {
-				t.Setenv("NUNTIUS_AI_API_KEY", tt.envValue)
-			}
+			t.Setenv("NUNTIUS_AI_API_KEY", tt.envValue)
 			key, err := ResolveAPIKey(tt.provider)
 			if tt.wantErr {
 				if err == nil {

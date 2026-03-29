@@ -191,7 +191,7 @@ through a local CLI tool.
 | Provider | API mode | CLI mode | Default model (API) |
 | --- | --- | --- | --- |
 | **Claude** | ✓ | ✓ | `claude-haiku-4-5` |
-| **Gemini** | ✓ | ✓ | `gemini-2.0-flash` |
+| **Gemini** | ✓ | ✓ | `gemini-3.1-flash-lite-preview` |
 | **Codex (OpenAI)** | ✓ | ✓ | `gpt-5.4-mini` |
 | **Ollama** | ✓ (no key needed) | ✓ | `llama3.2` |
 | **GitHub Copilot** | — | ✓ | — |

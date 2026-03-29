@@ -115,6 +115,7 @@ func TestClaude_GenerateCommitMessage_APIError(t *testing.T) {
 }
 
 func TestClaude_MissingAPIKey(t *testing.T) {
+	t.Setenv("NUNTIUS_AI_API_KEY", "")
 	cfg := config.AIConfig{Provider: "claude"}
 	_, err := NewClaude(cfg)
 	if err == nil {

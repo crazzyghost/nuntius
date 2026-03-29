@@ -402,6 +402,7 @@ func TestWizardAPIKeyStepViewWithKey(t *testing.T) {
 }
 
 func TestWizardAPIKeyStepViewWithoutKey(t *testing.T) {
+	t.Setenv("NUNTIUS_AI_API_KEY", "")
 	w := NewWizard()
 	view := w.viewAPIKeyStep()
 	if !strings.Contains(view, "export") {

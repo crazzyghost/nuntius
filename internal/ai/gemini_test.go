@@ -84,6 +84,7 @@ func TestGemini_GenerateCommitMessage_APIError(t *testing.T) {
 }
 
 func TestGemini_MissingAPIKey(t *testing.T) {
+	t.Setenv("NUNTIUS_AI_API_KEY", "")
 	cfg := config.AIConfig{Provider: "gemini"}
 	_, err := NewGemini(cfg)
 	if err == nil {
