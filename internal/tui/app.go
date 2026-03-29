@@ -124,7 +124,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.ready = true
 		m.help.Width = msg.Width
-		viewportHeight := m.height - actionBarHeight - 2 // borders
+		viewportHeight := m.height - actionBarHeight - 2 - 3 // panel borders + viewport chrome (title, gap, footer)
 		if viewportHeight < 1 {
 			viewportHeight = 1
 		}
