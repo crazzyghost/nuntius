@@ -35,8 +35,8 @@ func sendKey(t *testing.T, w Wizard, key string) Wizard {
 
 func TestWizardInitialStep(t *testing.T) {
 	w := NewWizard()
-	if w.currentStep != 0 {
-		t.Errorf("expected initial step 0, got %d", w.currentStep)
+	if w.stepIndex != 0 {
+		t.Errorf("expected initial step 0, got %d", w.stepIndex)
 	}
 	if w.Done() {
 		t.Error("expected Done() = false initially")
@@ -48,10 +48,11 @@ func TestWizardInitialStep(t *testing.T) {
 
 func TestWizardStepForward(t *testing.T) {
 	w := NewWizard()
-	for i := 0; i < totalSteps-1; i++ {
+	steps := w.activeSteps()
+	for i := 0; i < len(steps)-1; i++ {
 		w = sendKey(t, w, "enter")
-		if w.currentStep != i+1 {
-			t.Errorf("after enter on step %d: expected step %d, got %d", i, i+1, w.currentStep)
+		if w.stepIndex != i+1 {
+			t.Errorf("after enter on step %d: expected stepIndex %d, got %d", i, i+1, w.stepIndex)
 		}
 	}
 }
@@ -60,20 +61,20 @@ func TestWizardStepBackward(t *testing.T) {
 	w := NewWizard()
 	w = sendKey(t, w, "enter")
 	w = sendKey(t, w, "enter")
-	if w.currentStep != 2 {
-		t.Fatalf("expected step 2, got %d", w.currentStep)
+	if w.stepIndex != 2 {
+		t.Fatalf("expected step 2, got %d", w.stepIndex)
 	}
 	w = sendKey(t, w, "backspace")
-	if w.currentStep != 1 {
-		t.Errorf("expected step 1 after backspace, got %d", w.currentStep)
+	if w.stepIndex != 1 {
+		t.Errorf("expected step 1 after backspace, got %d", w.stepIndex)
 	}
 	w = sendKey(t, w, "left")
-	if w.currentStep != 0 {
-		t.Errorf("expected step 0 after left, got %d", w.currentStep)
+	if w.stepIndex != 0 {
+		t.Errorf("expected step 0 after left, got %d", w.stepIndex)
 	}
 	w = sendKey(t, w, "backspace")
-	if w.currentStep != 0 {
-		t.Errorf("expected step 0 stays at 0, got %d", w.currentStep)
+	if w.stepIndex != 0 {
+		t.Errorf("expected step 0 stays at 0, got %d", w.stepIndex)
 	}
 }
 
@@ -105,8 +106,10 @@ func TestWizardSkipCtrlC(t *testing.T) {
 }
 
 func TestWizardSkipAtAnyStep(t *testing.T) {
-	for step := 0; step < totalSteps; step++ {
-		w := NewWizard()
+	w := NewWizard()
+	steps := w.activeSteps()
+	for step := 0; step < len(steps); step++ {
+		w = NewWizard()
 		for i := 0; i < step; i++ {
 			w = sendKey(t, w, "enter")
 		}
@@ -119,7 +122,8 @@ func TestWizardSkipAtAnyStep(t *testing.T) {
 
 func TestWizardCompletionDone(t *testing.T) {
 	w := NewWizard()
-	for i := 0; i < totalSteps; i++ {
+	steps := w.activeSteps()
+	for i := 0; i < len(steps); i++ {
 		w = sendKey(t, w, "enter")
 	}
 	if !w.Done() {
@@ -132,7 +136,8 @@ func TestWizardCompletionDone(t *testing.T) {
 
 func TestWizardDefaultResult(t *testing.T) {
 	w := NewWizard()
-	for i := 0; i < totalSteps; i++ {
+	steps := w.activeSteps()
+	for i := 0; i < len(steps); i++ {
 		w = sendKey(t, w, "enter")
 	}
 	r := w.Result()
@@ -163,7 +168,8 @@ func TestWizardCLIModeResult(t *testing.T) {
 	// step 2: cursor is at 0 (api); press down to select cli (index 1)
 	w = sendKey(t, w, "down")
 	w = sendKey(t, w, "enter") // confirm cli
-	for i := 3; i <= 5; i++ {
+	// CLI mode: no API key step, so 3 remaining steps
+	for i := 0; i < 3; i++ {
 		w = sendKey(t, w, "enter")
 	}
 	r := w.Result()
@@ -181,7 +187,8 @@ func TestWizardAPIModeResult(t *testing.T) {
 	w = sendKey(t, w, "enter") // step 1: select model
 	// step 2: cursor is already at 0 (api) — just confirm
 	w = sendKey(t, w, "enter") // confirm api
-	for i := 3; i <= 5; i++ {
+	// API mode with claude: API key step + 3 remaining = 4 enter presses
+	for i := 0; i < 4; i++ {
 		w = sendKey(t, w, "enter")
 	}
 	r := w.Result()
@@ -321,5 +328,86 @@ func TestWriteConfigWithMode(t *testing.T) {
 	}
 	if !strings.Contains(content, `mode = "cli"`) {
 		t.Errorf("expected mode = cli in config, got:\n%s", content)
+	}
+}
+
+func TestWizardAPIKeyStepIncluded(t *testing.T) {
+	// API mode + claude → 7 active steps (includes key step).
+	w := NewWizard()
+	w = sendKey(t, w, "enter") // provider: claude
+	w = sendKey(t, w, "enter") // model
+	w = sendKey(t, w, "enter") // mode: api (default cursor=0)
+	steps := w.activeSteps()
+	if len(steps) != 7 {
+		t.Errorf("API mode + claude: expected 7 steps, got %d", len(steps))
+	}
+	hasKeyStep := false
+	for _, s := range steps {
+		if s == StepAPIKey {
+			hasKeyStep = true
+		}
+	}
+	if !hasKeyStep {
+		t.Error("expected StepAPIKey in active steps for API mode + claude")
+	}
+}
+
+func TestWizardAPIKeyStepSkippedCLI(t *testing.T) {
+	// CLI mode + claude → 6 active steps (no key step).
+	w := NewWizard()
+	w = sendKey(t, w, "enter") // provider: claude
+	w = sendKey(t, w, "enter") // model
+	w = sendKey(t, w, "down")  // move to cli
+	w = sendKey(t, w, "enter") // mode: cli
+	steps := w.activeSteps()
+	if len(steps) != 6 {
+		t.Errorf("CLI mode + claude: expected 6 steps, got %d", len(steps))
+	}
+	for _, s := range steps {
+		if s == StepAPIKey {
+			t.Error("StepAPIKey should not be in active steps for CLI mode")
+		}
+	}
+}
+
+func TestWizardAPIKeyStepSkippedOllama(t *testing.T) {
+	// API mode + ollama → 6 active steps (no key step).
+	w := NewWizard()
+	for i := 0; i < 4; i++ {
+		w = sendKey(t, w, "down") // navigate to ollama
+	}
+	w = sendKey(t, w, "enter") // select ollama
+	// Type model name
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("llama3")}
+	model, _ := w.Update(msg)
+	w = model.(Wizard)
+	w = sendKey(t, w, "enter") // confirm model
+	w = sendKey(t, w, "enter") // mode: api
+	steps := w.activeSteps()
+	if len(steps) != 6 {
+		t.Errorf("API mode + ollama: expected 6 steps, got %d", len(steps))
+	}
+}
+
+func TestWizardAPIKeyStepViewWithKey(t *testing.T) {
+	t.Setenv("NUNTIUS_AI_API_KEY", "test-key")
+	w := NewWizard()
+	view := w.viewAPIKeyStep()
+	if !strings.Contains(view, "✓") {
+		t.Error("expected success indicator when key is set")
+	}
+	if !strings.Contains(view, "NUNTIUS_AI_API_KEY") {
+		t.Error("expected env var name in view")
+	}
+}
+
+func TestWizardAPIKeyStepViewWithoutKey(t *testing.T) {
+	w := NewWizard()
+	view := w.viewAPIKeyStep()
+	if !strings.Contains(view, "export") {
+		t.Error("expected export command when key is not set")
+	}
+	if !strings.Contains(view, "NUNTIUS_AI_API_KEY") {
+		t.Error("expected env var name in view")
 	}
 }

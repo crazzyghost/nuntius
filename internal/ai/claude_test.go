@@ -43,9 +43,9 @@ func TestClaude_GenerateCommitMessage_Success(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	t.Setenv("ANTHROPIC_API_KEY", "test-key")
+	t.Setenv("NUNTIUS_AI_API_KEY", "test-key")
 
-	cfg := config.AIConfig{Provider: "claude", APIKeyEnv: "ANTHROPIC_API_KEY"}
+	cfg := config.AIConfig{Provider: "claude"}
 	c, err := NewClaude(cfg)
 	if err != nil {
 		t.Fatalf("NewClaude: %v", err)
@@ -71,9 +71,9 @@ func TestClaude_GenerateCommitMessage_RateLimit(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	t.Setenv("ANTHROPIC_API_KEY", "test-key")
+	t.Setenv("NUNTIUS_AI_API_KEY", "test-key")
 
-	cfg := config.AIConfig{Provider: "claude", APIKeyEnv: "ANTHROPIC_API_KEY"}
+	cfg := config.AIConfig{Provider: "claude"}
 	c, err := NewClaude(cfg)
 	if err != nil {
 		t.Fatalf("NewClaude: %v", err)
@@ -96,9 +96,9 @@ func TestClaude_GenerateCommitMessage_APIError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	t.Setenv("ANTHROPIC_API_KEY", "test-key")
+	t.Setenv("NUNTIUS_AI_API_KEY", "test-key")
 
-	cfg := config.AIConfig{Provider: "claude", APIKeyEnv: "ANTHROPIC_API_KEY"}
+	cfg := config.AIConfig{Provider: "claude"}
 	c, err := NewClaude(cfg)
 	if err != nil {
 		t.Fatalf("NewClaude: %v", err)
@@ -115,22 +115,20 @@ func TestClaude_GenerateCommitMessage_APIError(t *testing.T) {
 }
 
 func TestClaude_MissingAPIKey(t *testing.T) {
-	t.Setenv("ANTHROPIC_API_KEY", "")
-
-	cfg := config.AIConfig{Provider: "claude", APIKeyEnv: "ANTHROPIC_API_KEY"}
+	cfg := config.AIConfig{Provider: "claude"}
 	_, err := NewClaude(cfg)
 	if err == nil {
 		t.Fatal("expected error for missing API key")
 	}
-	if !strings.Contains(err.Error(), "ANTHROPIC_API_KEY") {
+	if !strings.Contains(err.Error(), "NUNTIUS_AI_API_KEY") {
 		t.Errorf("error should reference env var: %v", err)
 	}
 }
 
 func TestClaude_DefaultModel(t *testing.T) {
-	t.Setenv("ANTHROPIC_API_KEY", "test-key")
+	t.Setenv("NUNTIUS_AI_API_KEY", "test-key")
 
-	cfg := config.AIConfig{Provider: "claude", APIKeyEnv: "ANTHROPIC_API_KEY"}
+	cfg := config.AIConfig{Provider: "claude"}
 	c, err := NewClaude(cfg)
 	if err != nil {
 		t.Fatalf("NewClaude: %v", err)
@@ -141,9 +139,9 @@ func TestClaude_DefaultModel(t *testing.T) {
 }
 
 func TestClaude_CustomModel(t *testing.T) {
-	t.Setenv("ANTHROPIC_API_KEY", "test-key")
+	t.Setenv("NUNTIUS_AI_API_KEY", "test-key")
 
-	cfg := config.AIConfig{Provider: "claude", APIKeyEnv: "ANTHROPIC_API_KEY", Model: "claude-3-opus"}
+	cfg := config.AIConfig{Provider: "claude", Model: "claude-3-opus"}
 	c, err := NewClaude(cfg)
 	if err != nil {
 		t.Fatalf("NewClaude: %v", err)
@@ -154,9 +152,9 @@ func TestClaude_CustomModel(t *testing.T) {
 }
 
 func TestClaude_NameAndMode(t *testing.T) {
-	t.Setenv("ANTHROPIC_API_KEY", "test-key")
+	t.Setenv("NUNTIUS_AI_API_KEY", "test-key")
 
-	cfg := config.AIConfig{Provider: "claude", APIKeyEnv: "ANTHROPIC_API_KEY"}
+	cfg := config.AIConfig{Provider: "claude"}
 	c, err := NewClaude(cfg)
 	if err != nil {
 		t.Fatalf("NewClaude: %v", err)

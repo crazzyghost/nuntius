@@ -503,7 +503,10 @@ func formatErrorMsg(msg events.ErrorMsg) string {
 	switch {
 	case strings.Contains(errStr, "API key") || strings.Contains(errStr, "api_key") ||
 		strings.Contains(errStr, "401") || strings.Contains(errStr, "authentication"):
-		return base + " — hint: set the API key env var or configure api_key_env in .nuntius.toml"
+		return base + fmt.Sprintf(
+			" — hint: export %s=<your-key> in your shell",
+			ai.APIKeyEnvVar,
+		)
 	case strings.Contains(errStr, "connection refused") || strings.Contains(errStr, "no such host") ||
 		strings.Contains(errStr, "timeout"):
 		return base + " — hint: check your network connection and retry"

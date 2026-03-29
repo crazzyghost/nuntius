@@ -1,5 +1,18 @@
 package onboarding
 
+// StepID identifies a wizard step independently of its display index.
+type StepID int
+
+const (
+	StepProvider StepID = iota
+	StepModel
+	StepMode
+	StepAPIKey // conditional — only if API mode + key-requiring provider
+	StepAutoCommit
+	StepAutoPush
+	StepUpdateCheck
+)
+
 // Option represents a selectable item in a wizard step.
 type Option struct {
 	Label string

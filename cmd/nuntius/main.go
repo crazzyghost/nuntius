@@ -113,6 +113,9 @@ func setup(args []string) (*setupResult, int, bool) {
 	aiProvider, err := ai.NewProvider(cfg.AI)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: AI provider init failed: %v\n", err)
+		if ai.RequiresAPIKey(cfg.AI.Provider, ai.ProviderMode(cfg.AI.Mode)) {
+			fmt.Fprintf(os.Stderr, "  → export %s=<your-key>\n", ai.APIKeyEnvVar)
+		}
 	}
 
 	// Create file watcher.

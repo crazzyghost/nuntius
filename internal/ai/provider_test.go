@@ -12,26 +12,24 @@ func TestNewProvider_APIAdapters(t *testing.T) {
 	tests := []struct {
 		name     string
 		provider string
-		envKey   string
-		envVal   string
 		wantName string
 		wantMode ProviderMode
 	}{
-		{"claude", "claude", "ANTHROPIC_API_KEY", "test-key", "claude", ModeAPI},
-		{"gemini", "gemini", "GEMINI_API_KEY", "test-key", "gemini", ModeAPI},
-		{"codex", "codex", "OPENAI_API_KEY", "test-key", "codex", ModeAPI},
-		{"ollama", "ollama", "", "", "ollama", ModeAPI},
+		{"claude", "claude", "claude", ModeAPI},
+		{"gemini", "gemini", "gemini", ModeAPI},
+		{"codex", "codex", "codex", ModeAPI},
+		{"ollama", "ollama", "ollama", ModeAPI},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.envKey != "" {
-				t.Setenv(tt.envKey, tt.envVal)
+			// Set the unified API key for providers that need it.
+			if tt.provider != "ollama" {
+				t.Setenv("NUNTIUS_AI_API_KEY", "test-key")
 			}
 			cfg := config.AIConfig{
-				Provider:  tt.provider,
-				Mode:      "api",
-				APIKeyEnv: tt.envKey,
+				Provider: tt.provider,
+				Mode:     "api",
 			}
 			p, err := NewProvider(cfg)
 			if err != nil {

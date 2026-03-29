@@ -40,9 +40,9 @@ func TestCodex_GenerateCommitMessage_Success(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	t.Setenv("OPENAI_API_KEY", "test-key")
+	t.Setenv("NUNTIUS_AI_API_KEY", "test-key")
 
-	cfg := config.AIConfig{Provider: "codex", APIKeyEnv: "OPENAI_API_KEY"}
+	cfg := config.AIConfig{Provider: "codex"}
 	c, err := NewCodex(cfg)
 	if err != nil {
 		t.Fatalf("NewCodex: %v", err)
@@ -68,9 +68,9 @@ func TestCodex_GenerateCommitMessage_APIError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	t.Setenv("OPENAI_API_KEY", "test-key")
+	t.Setenv("NUNTIUS_AI_API_KEY", "test-key")
 
-	cfg := config.AIConfig{Provider: "codex", APIKeyEnv: "OPENAI_API_KEY"}
+	cfg := config.AIConfig{Provider: "codex"}
 	c, err := NewCodex(cfg)
 	if err != nil {
 		t.Fatalf("NewCodex: %v", err)
@@ -87,9 +87,7 @@ func TestCodex_GenerateCommitMessage_APIError(t *testing.T) {
 }
 
 func TestCodex_MissingAPIKey(t *testing.T) {
-	t.Setenv("OPENAI_API_KEY", "")
-
-	cfg := config.AIConfig{Provider: "codex", APIKeyEnv: "OPENAI_API_KEY"}
+	cfg := config.AIConfig{Provider: "codex"}
 	_, err := NewCodex(cfg)
 	if err == nil {
 		t.Fatal("expected error for missing API key")
@@ -97,9 +95,9 @@ func TestCodex_MissingAPIKey(t *testing.T) {
 }
 
 func TestCodex_DefaultModel(t *testing.T) {
-	t.Setenv("OPENAI_API_KEY", "test-key")
+	t.Setenv("NUNTIUS_AI_API_KEY", "test-key")
 
-	cfg := config.AIConfig{Provider: "codex", APIKeyEnv: "OPENAI_API_KEY"}
+	cfg := config.AIConfig{Provider: "codex"}
 	c, err := NewCodex(cfg)
 	if err != nil {
 		t.Fatalf("NewCodex: %v", err)
@@ -110,9 +108,9 @@ func TestCodex_DefaultModel(t *testing.T) {
 }
 
 func TestCodex_NameAndMode(t *testing.T) {
-	t.Setenv("OPENAI_API_KEY", "test-key")
+	t.Setenv("NUNTIUS_AI_API_KEY", "test-key")
 
-	cfg := config.AIConfig{Provider: "codex", APIKeyEnv: "OPENAI_API_KEY"}
+	cfg := config.AIConfig{Provider: "codex"}
 	c, err := NewCodex(cfg)
 	if err != nil {
 		t.Fatalf("NewCodex: %v", err)
@@ -132,9 +130,9 @@ func TestCodex_EmptyResponse(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	t.Setenv("OPENAI_API_KEY", "test-key")
+	t.Setenv("NUNTIUS_AI_API_KEY", "test-key")
 
-	cfg := config.AIConfig{Provider: "codex", APIKeyEnv: "OPENAI_API_KEY"}
+	cfg := config.AIConfig{Provider: "codex"}
 	c, err := NewCodex(cfg)
 	if err != nil {
 		t.Fatalf("NewCodex: %v", err)

@@ -22,9 +22,6 @@ type AIConfig struct {
 	Mode string `toml:"mode"`
 	// Model overrides the provider's default model. Empty uses the provider default.
 	Model string `toml:"model"`
-	// APIKeyEnv is the name of the environment variable holding the API key.
-	// Not required for ollama or CLI providers.
-	APIKeyEnv string `toml:"api_key_env"`
 	// OllamaURL is the Ollama API endpoint. Default: http://localhost:11434
 	OllamaURL string `toml:"ollama_url"`
 	// CLICommand is a custom CLI command for the "custom" provider.
@@ -62,7 +59,6 @@ func DefaultConfig() Config {
 		AI: AIConfig{
 			Provider:  "",
 			Model:     "",
-			APIKeyEnv: "",
 			OllamaURL: "http://localhost:11434",
 		},
 		Behavior: BehaviorConfig{

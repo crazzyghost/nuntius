@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -30,13 +29,9 @@ type Claude struct {
 
 // NewClaude creates a Claude provider from the given config.
 func NewClaude(cfg config.AIConfig) (*Claude, error) {
-	envVar := cfg.APIKeyEnv
-	if envVar == "" {
-		envVar = "ANTHROPIC_API_KEY"
-	}
-	apiKey := os.Getenv(envVar)
-	if apiKey == "" {
-		return nil, fmt.Errorf("claude: API key not set — export %s", envVar)
+	apiKey, err := ResolveAPIKey("claude")
+	if err != nil {
+		return nil, err
 	}
 
 	model := cfg.Model

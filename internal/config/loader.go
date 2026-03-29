@@ -89,9 +89,6 @@ func applyEnvOverrides(cfg *Config) {
 	if v := os.Getenv("NUNTIUS_AI_MODEL"); v != "" {
 		cfg.AI.Model = v
 	}
-	if v := os.Getenv("NUNTIUS_AI_API_KEY_ENV"); v != "" {
-		cfg.AI.APIKeyEnv = v
-	}
 	if v := os.Getenv("NUNTIUS_AI_OLLAMA_URL"); v != "" {
 		cfg.AI.OllamaURL = v
 	}

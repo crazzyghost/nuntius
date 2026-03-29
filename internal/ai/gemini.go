@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -29,13 +28,9 @@ type Gemini struct {
 
 // NewGemini creates a Gemini provider from the given config.
 func NewGemini(cfg config.AIConfig) (*Gemini, error) {
-	envVar := cfg.APIKeyEnv
-	if envVar == "" {
-		envVar = "GEMINI_API_KEY"
-	}
-	apiKey := os.Getenv(envVar)
-	if apiKey == "" {
-		return nil, fmt.Errorf("gemini: API key not set — export %s", envVar)
+	apiKey, err := ResolveAPIKey("gemini")
+	if err != nil {
+		return nil, err
 	}
 
 	model := cfg.Model

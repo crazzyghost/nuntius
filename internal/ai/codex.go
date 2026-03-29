@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -29,13 +28,9 @@ type Codex struct {
 
 // NewCodex creates a Codex (OpenAI) provider from the given config.
 func NewCodex(cfg config.AIConfig) (*Codex, error) {
-	envVar := cfg.APIKeyEnv
-	if envVar == "" {
-		envVar = "OPENAI_API_KEY"
-	}
-	apiKey := os.Getenv(envVar)
-	if apiKey == "" {
-		return nil, fmt.Errorf("codex: API key not set — export %s", envVar)
+	apiKey, err := ResolveAPIKey("codex")
+	if err != nil {
+		return nil, err
 	}
 
 	model := cfg.Model

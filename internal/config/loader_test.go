@@ -79,10 +79,6 @@ style = "gitmoji"
 	if cfg.Conventions.Style != "gitmoji" {
 		t.Errorf("expected style %q, got %q", "gitmoji", cfg.Conventions.Style)
 	}
-	// Non-specified fields should retain defaults
-	if cfg.AI.APIKeyEnv != "" {
-		t.Errorf("expected default api_key_env, got %q", cfg.AI.APIKeyEnv)
-	}
 }
 
 func TestLoadGlobalFile(t *testing.T) {
@@ -219,7 +215,6 @@ func clearNuntiusEnv(t *testing.T) {
 		"NUNTIUS_AI_PROVIDER",
 		"NUNTIUS_AI_MODE",
 		"NUNTIUS_AI_MODEL",
-		"NUNTIUS_AI_API_KEY_ENV",
 		"NUNTIUS_AI_OLLAMA_URL",
 		"NUNTIUS_AI_CLI_COMMAND",
 		"NUNTIUS_AI_CLI_ARGS",

@@ -37,9 +37,9 @@ func TestGemini_GenerateCommitMessage_Success(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	t.Setenv("GEMINI_API_KEY", "test-key")
+	t.Setenv("NUNTIUS_AI_API_KEY", "test-key")
 
-	cfg := config.AIConfig{Provider: "gemini", APIKeyEnv: "GEMINI_API_KEY"}
+	cfg := config.AIConfig{Provider: "gemini"}
 	g, err := NewGemini(cfg)
 	if err != nil {
 		t.Fatalf("NewGemini: %v", err)
@@ -65,9 +65,9 @@ func TestGemini_GenerateCommitMessage_APIError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	t.Setenv("GEMINI_API_KEY", "test-key")
+	t.Setenv("NUNTIUS_AI_API_KEY", "test-key")
 
-	cfg := config.AIConfig{Provider: "gemini", APIKeyEnv: "GEMINI_API_KEY"}
+	cfg := config.AIConfig{Provider: "gemini"}
 	g, err := NewGemini(cfg)
 	if err != nil {
 		t.Fatalf("NewGemini: %v", err)
@@ -84,9 +84,7 @@ func TestGemini_GenerateCommitMessage_APIError(t *testing.T) {
 }
 
 func TestGemini_MissingAPIKey(t *testing.T) {
-	t.Setenv("GEMINI_API_KEY", "")
-
-	cfg := config.AIConfig{Provider: "gemini", APIKeyEnv: "GEMINI_API_KEY"}
+	cfg := config.AIConfig{Provider: "gemini"}
 	_, err := NewGemini(cfg)
 	if err == nil {
 		t.Fatal("expected error for missing API key")
@@ -94,9 +92,9 @@ func TestGemini_MissingAPIKey(t *testing.T) {
 }
 
 func TestGemini_DefaultModel(t *testing.T) {
-	t.Setenv("GEMINI_API_KEY", "test-key")
+	t.Setenv("NUNTIUS_AI_API_KEY", "test-key")
 
-	cfg := config.AIConfig{Provider: "gemini", APIKeyEnv: "GEMINI_API_KEY"}
+	cfg := config.AIConfig{Provider: "gemini"}
 	g, err := NewGemini(cfg)
 	if err != nil {
 		t.Fatalf("NewGemini: %v", err)
@@ -107,9 +105,9 @@ func TestGemini_DefaultModel(t *testing.T) {
 }
 
 func TestGemini_NameAndMode(t *testing.T) {
-	t.Setenv("GEMINI_API_KEY", "test-key")
+	t.Setenv("NUNTIUS_AI_API_KEY", "test-key")
 
-	cfg := config.AIConfig{Provider: "gemini", APIKeyEnv: "GEMINI_API_KEY"}
+	cfg := config.AIConfig{Provider: "gemini"}
 	g, err := NewGemini(cfg)
 	if err != nil {
 		t.Fatalf("NewGemini: %v", err)
@@ -129,9 +127,9 @@ func TestGemini_EmptyResponse(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	t.Setenv("GEMINI_API_KEY", "test-key")
+	t.Setenv("NUNTIUS_AI_API_KEY", "test-key")
 
-	cfg := config.AIConfig{Provider: "gemini", APIKeyEnv: "GEMINI_API_KEY"}
+	cfg := config.AIConfig{Provider: "gemini"}
 	g, err := NewGemini(cfg)
 	if err != nil {
 		t.Fatalf("NewGemini: %v", err)

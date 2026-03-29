@@ -12,9 +12,6 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.AI.Model != "" {
 		t.Errorf("expected AI.Model = %q, got %q", "", cfg.AI.Model)
 	}
-	if cfg.AI.APIKeyEnv != "" {
-		t.Errorf("expected AI.APIKeyEnv = %q, got %q", "", cfg.AI.APIKeyEnv)
-	}
 	if cfg.AI.OllamaURL != "http://localhost:11434" {
 		t.Errorf("expected AI.OllamaURL = %q, got %q", "http://localhost:11434", cfg.AI.OllamaURL)
 	}

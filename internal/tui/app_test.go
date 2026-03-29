@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -290,29 +291,34 @@ func TestAppAutoModeBadges(t *testing.T) {
 
 func TestFormatErrorMsg(t *testing.T) {
 	tests := []struct {
-		name     string
-		msg      events.ErrorMsg
-		contains string
+		name        string
+		msg         events.ErrorMsg
+		contains    string
+		notContains string
 	}{
 		{
 			"api key hint",
 			events.ErrorMsg{Source: "generate", Err: fmt.Errorf("401 authentication failed")},
+			"NUNTIUS_AI_API_KEY",
 			"api_key_env",
 		},
 		{
 			"network hint",
 			events.ErrorMsg{Source: "generate", Err: fmt.Errorf("connection refused")},
 			"network",
+			"",
 		},
 		{
 			"upstream hint",
 			events.ErrorMsg{Source: "push", Err: fmt.Errorf("no upstream branch")},
 			"set-upstream",
+			"",
 		},
 		{
 			"generic error",
 			events.ErrorMsg{Source: "commit", Err: fmt.Errorf("something went wrong")},
 			"something went wrong",
+			"",
 		},
 	}
 
@@ -321,6 +327,12 @@ func TestFormatErrorMsg(t *testing.T) {
 			result := formatErrorMsg(tt.msg)
 			if result == "" {
 				t.Error("formatErrorMsg should not return empty")
+			}
+			if !strings.Contains(result, tt.contains) {
+				t.Errorf("result %q should contain %q", result, tt.contains)
+			}
+			if tt.notContains != "" && strings.Contains(result, tt.notContains) {
+				t.Errorf("result %q should NOT contain %q", result, tt.notContains)
 			}
 		})
 	}
