@@ -382,7 +382,7 @@ func TestWizardAPIKeyStepSkippedOllama(t *testing.T) {
 	model, _ := w.Update(msg)
 	w = model.(Wizard)
 	w = sendKey(t, w, "enter") // confirm model
-	w = sendKey(t, w, "enter") // mode: api
+	w = sendKey(t, w, "enter") // mode: api (default cursor=0)
 	steps := w.activeSteps()
 	if len(steps) != 6 {
 		t.Errorf("API mode + ollama: expected 6 steps, got %d", len(steps))
@@ -409,5 +409,72 @@ func TestWizardAPIKeyStepViewWithoutKey(t *testing.T) {
 	}
 	if !strings.Contains(view, "NUNTIUS_AI_API_KEY") {
 		t.Error("expected env var name in view")
+	}
+}
+
+func TestWizardCopilotResultMode(t *testing.T) {
+	// Copilot is CLI-only — Result().Mode must always be "cli".
+	w := NewWizard()
+	w = sendKey(t, w, "down")  // navigate to codex
+	w = sendKey(t, w, "down")  // navigate to copilot
+	w = sendKey(t, w, "enter") // select copilot
+	w = sendKey(t, w, "enter") // model
+	w = sendKey(t, w, "enter") // mode: cli (only option)
+	w = sendKey(t, w, "enter") // auto-commit
+	w = sendKey(t, w, "enter") // auto-push
+	w = sendKey(t, w, "enter") // update-check
+	if !w.Done() {
+		t.Fatal("expected wizard Done()")
+	}
+	r := w.Result()
+	if r.Provider != "copilot" {
+		t.Errorf("expected provider %q, got %q", "copilot", r.Provider)
+	}
+	if r.Mode != "cli" {
+		t.Errorf("expected mode %q, got %q", "cli", r.Mode)
+	}
+}
+
+func TestWizardCopilotNoAPIKeyStep(t *testing.T) {
+	// Copilot is CLI-only — activeSteps() must never include StepAPIKey.
+	w := NewWizard()
+	w = sendKey(t, w, "down")  // navigate to codex
+	w = sendKey(t, w, "down")  // navigate to copilot
+	w = sendKey(t, w, "enter") // select copilot
+	w = sendKey(t, w, "enter") // model
+	w = sendKey(t, w, "enter") // mode: cli (only option)
+	steps := w.activeSteps()
+	for _, s := range steps {
+		if s == StepAPIKey {
+			t.Error("StepAPIKey should not be in active steps for copilot")
+		}
+	}
+	if len(steps) != 6 {
+		t.Errorf("copilot: expected 6 steps, got %d", len(steps))
+	}
+}
+
+func TestWizardOllamaDefaultModel(t *testing.T) {
+	// Ollama with empty model input should default to "llama3.2".
+	w := NewWizard()
+	for i := 0; i < 4; i++ {
+		w = sendKey(t, w, "down") // navigate to ollama
+	}
+	w = sendKey(t, w, "enter") // select ollama
+	// Leave model input empty — just press enter.
+	w = sendKey(t, w, "enter") // confirm empty model
+	w = sendKey(t, w, "enter") // mode
+	w = sendKey(t, w, "enter") // auto-commit
+	w = sendKey(t, w, "enter") // auto-push
+	w = sendKey(t, w, "enter") // update-check
+	if !w.Done() {
+		t.Fatal("expected wizard Done()")
+	}
+	r := w.Result()
+	if r.Provider != "ollama" {
+		t.Errorf("expected provider %q, got %q", "ollama", r.Provider)
+	}
+	if r.Model != "llama3.2" {
+		t.Errorf("expected model %q, got %q", "llama3.2", r.Model)
 	}
 }

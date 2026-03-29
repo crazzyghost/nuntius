@@ -72,13 +72,27 @@ func (w Wizard) Done() bool { return w.done }
 // Skipped returns true when the user skipped onboarding.
 func (w Wizard) Skipped() bool { return w.skipped }
 
+// modeOptionsForProvider returns the mode options applicable to the given provider.
+// CLI-only providers (e.g. copilot) only see the CLI option.
+func modeOptionsForProvider(provider string) []Option {
+	if provider == "copilot" {
+		return ModeOptions[1:2] // copilot only supports cli mode
+	}
+	return ModeOptions
+}
+
 // activeSteps returns the ordered list of steps the user should navigate,
 // given current selections. Called dynamically.
 func (w Wizard) activeSteps() []StepID {
 	steps := []StepID{StepProvider, StepModel, StepMode}
 
 	provider := ProviderOptions[w.cursors[StepProvider]].Value
-	mode := ModeOptions[w.cursors[StepMode]].Value
+	opts := modeOptionsForProvider(provider)
+	cursor := w.cursors[StepMode]
+	if cursor >= len(opts) {
+		cursor = 0
+	}
+	mode := opts[cursor].Value
 	if ai.RequiresAPIKey(provider, ai.ProviderMode(mode)) {
 		steps = append(steps, StepAPIKey)
 	}
@@ -104,15 +118,24 @@ func (w Wizard) Result() WizardResult {
 	var model string
 	if provider == "ollama" {
 		model = strings.TrimSpace(w.ollamaInput.Value())
+		if model == "" {
+			model = "llama3.2"
+		}
 	} else {
 		if models, ok := ModelOptions[provider]; ok && w.cursors[StepModel] < len(models) {
 			model = models[w.cursors[StepModel]].Value
 		}
 	}
 
+	opts := modeOptionsForProvider(provider)
+	modeCursor := w.cursors[StepMode]
+	if modeCursor >= len(opts) {
+		modeCursor = 0
+	}
+
 	return WizardResult{
 		Provider:        provider,
-		Mode:            ModeOptions[w.cursors[StepMode]].Value,
+		Mode:            opts[modeCursor].Value,
 		Model:           model,
 		AutoCommit:      AutoCommitOptions[w.cursors[StepAutoCommit]].Value == "true",
 		AutoPush:        AutoPushOptions[w.cursors[StepAutoPush]].Value == "true",
@@ -140,10 +163,7 @@ func (w Wizard) currentOptions() []Option {
 		provider := ProviderOptions[w.cursors[StepProvider]].Value
 		return ModelOptions[provider]
 	case StepMode:
-		if ProviderOptions[w.cursors[StepProvider]].Value == "copilot" {
-			return ModeOptions[1:2] // copilot only supports cli mode
-		}
-		return ModeOptions
+		return modeOptionsForProvider(ProviderOptions[w.cursors[StepProvider]].Value)
 	case StepAPIKey:
 		return nil // informational step
 	case StepAutoCommit:

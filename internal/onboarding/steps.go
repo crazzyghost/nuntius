@@ -64,14 +64,14 @@ var ModelOptions = map[string][]Option{
 	},
 }
 
-// ModeOptions lists connection modes. Default is "cli" (index 0).
+// ModeOptions lists connection modes. Default is "api" (index 0).
 var ModeOptions = []Option{
-	{Label: "api — connects directly via API (requires API key)", Value: "api"},
+	{Label: "api — connects directly via API (requires API key; not needed for local ollama)", Value: "api"},
 	{Label: "cli — uses locally installed CLI tool (e.g. copilot, claude, gemini)", Value: "cli"},
 }
 
 // defaultModeIndex returns the default cursor index for the mode selection step.
-// All providers default to CLI mode (index 0).
+// All providers default to API mode (index 0).
 func defaultModeIndex(_ string) int {
 	return 0
 }
