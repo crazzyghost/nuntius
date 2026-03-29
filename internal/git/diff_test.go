@@ -1,6 +1,8 @@
 package git
 
 import (
+	"os"
+	"os/exec"
 	"strings"
 	"testing"
 )
@@ -136,5 +138,70 @@ func TestParseDiffFileHeaders(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestUntrackedDiff_UntrackedFileIncluded(t *testing.T) {
+	repo := t.TempDir()
+	runGit(t, repo, "init")
+
+	if err := os.WriteFile(repo+"/new_file.txt", []byte("hello\nworld\n"), 0o600); err != nil {
+		t.Fatalf("write untracked file: %v", err)
+	}
+
+	orig, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(orig)
+	})
+	if err := os.Chdir(repo); err != nil {
+		t.Fatalf("chdir repo: %v", err)
+	}
+
+	diff, err := UntrackedDiff(DefaultMaxDiffBytes)
+	if err != nil {
+		t.Fatalf("UntrackedDiff: %v", err)
+	}
+	if diff == "" {
+		t.Fatal("expected untracked diff, got empty")
+	}
+	if !strings.Contains(diff, "+++ b/new_file.txt") {
+		t.Fatalf("expected diff header for untracked file, got: %q", diff)
+	}
+}
+
+func TestUntrackedDiff_NoUntrackedFiles(t *testing.T) {
+	repo := t.TempDir()
+	runGit(t, repo, "init")
+
+	orig, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(orig)
+	})
+	if err := os.Chdir(repo); err != nil {
+		t.Fatalf("chdir repo: %v", err)
+	}
+
+	diff, err := UntrackedDiff(DefaultMaxDiffBytes)
+	if err != nil {
+		t.Fatalf("UntrackedDiff: %v", err)
+	}
+	if diff != "" {
+		t.Fatalf("expected empty diff with no untracked files, got %q", diff)
+	}
+}
+
+func runGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %s failed: %v\n%s", strings.Join(args, " "), err, string(out))
 	}
 }

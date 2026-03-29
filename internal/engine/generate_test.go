@@ -3,6 +3,10 @@ package engine_test
 import (
 	"context"
 	"errors"
+	"os"
+	"os/exec"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/crazzyghost/nuntius/internal/ai"
@@ -15,9 +19,11 @@ import (
 type mockProvider struct {
 	msg string
 	err error
+	req ai.MessageRequest
 }
 
-func (m *mockProvider) GenerateCommitMessage(_ context.Context, _ ai.MessageRequest) (string, error) {
+func (m *mockProvider) GenerateCommitMessage(_ context.Context, req ai.MessageRequest) (string, error) {
+	m.req = req
 	return m.msg, m.err
 }
 
@@ -161,4 +167,51 @@ func containsStr(s, sub string) bool {
 			}
 			return false
 		}())
+}
+
+func TestGenerate_AutoSourceWithOnlyUntrackedFiles(t *testing.T) {
+	repo := t.TempDir()
+	runGit(t, repo, "init")
+
+	if err := os.WriteFile(repo+"/untracked.txt", []byte("line one\nline two\n"), 0o600); err != nil {
+		t.Fatalf("write untracked file: %v", err)
+	}
+
+	orig, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(orig)
+	})
+	if err := os.Chdir(repo); err != nil {
+		t.Fatalf("chdir repo: %v", err)
+	}
+
+	p := &mockProvider{msg: "feat: add untracked file"}
+	cfg := config.DefaultConfig()
+
+	msg, files, err := engine.Generate(context.Background(), cfg, p, engine.GenerateInput{Source: engine.DiffSourceAuto})
+	if err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+	if msg != "feat: add untracked file" {
+		t.Fatalf("unexpected message: %q", msg)
+	}
+	if !strings.Contains(p.req.Diff, "+++ b/untracked.txt") {
+		t.Fatalf("expected untracked diff in request, got %q", p.req.Diff)
+	}
+	if !slices.Contains(files, "untracked.txt") {
+		t.Fatalf("expected file list to include untracked.txt, got %v", files)
+	}
+}
+
+func runGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %s failed: %v\n%s", strings.Join(args, " "), err, string(out))
+	}
 }

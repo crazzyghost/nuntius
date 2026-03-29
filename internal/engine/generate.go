@@ -92,8 +92,18 @@ func collectDiff(input GenerateInput) (string, []string, error) {
 		return diff, files, nil
 
 	default: // DiffSourceAuto
-		staged, _ := git.StagedDiff(git.DefaultMaxDiffBytes)
-		unstaged, _ := git.Diff(git.DefaultMaxDiffBytes)
+		staged, err := git.StagedDiff(git.DefaultMaxDiffBytes)
+		if err != nil {
+			return "", nil, fmt.Errorf("getting staged diff: %w", err)
+		}
+		unstaged, err := git.Diff(git.DefaultMaxDiffBytes)
+		if err != nil {
+			return "", nil, fmt.Errorf("getting unstaged diff: %w", err)
+		}
+		untracked, err := git.UntrackedDiff(git.DefaultMaxDiffBytes)
+		if err != nil {
+			return "", nil, fmt.Errorf("getting untracked diff: %w", err)
+		}
 
 		diff := staged
 		if unstaged != "" {
@@ -101,6 +111,12 @@ func collectDiff(input GenerateInput) (string, []string, error) {
 				diff += "\n"
 			}
 			diff += unstaged
+		}
+		if untracked != "" {
+			if diff != "" {
+				diff += "\n"
+			}
+			diff += untracked
 		}
 
 		allFiles, _ := git.Status()
